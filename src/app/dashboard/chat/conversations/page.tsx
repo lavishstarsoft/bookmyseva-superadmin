@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef } from "react"
-import axios from "axios"
+import api from "@/lib/axios"
 import { io, Socket } from "socket.io-client"
 import {
     MessageSquare,
@@ -107,8 +107,10 @@ export default function LiveConversationsPage() {
 
     // Initialize Socket.io
     useEffect(() => {
+        const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
         const newSocket = io(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001", {
-            path: "/api/socket.io"
+            path: "/socket.io",
+            auth: { token }
         })
         setSocket(newSocket)
 
@@ -205,12 +207,13 @@ export default function LiveConversationsPage() {
     const fetchSessions = async () => {
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/chat/sessions`, {
+            const res = await api.get(`/chat/sessions`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
-            setSessions(res.data)
+            setSessions(res.data?.data || res.data || [])
         } catch (error) {
             console.error(error)
+            setSessions([])
         } finally {
             setLoading(false)
         }
@@ -271,10 +274,10 @@ export default function LiveConversationsPage() {
 
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/chat/sessions/${sessionId}/messages`, {
+            const res = await api.get(`/chat/sessions/${sessionId}/messages`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
-            setMessages(res.data)
+            setMessages(res.data || [])
         } catch (error) {
             console.error("Failed to fetch messages:", error)
         }

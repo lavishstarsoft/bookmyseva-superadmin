@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { Header } from "@/components/dashboard/header";
 import { Sidebar, MobileSidebar } from "@/components/dashboard/sidebar";
 import { SidebarProvider, useSidebar } from "@/components/dashboard/sidebar-context";
@@ -26,13 +27,17 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 "hidden h-full md:flex md:flex-col md:fixed md:inset-y-0 z-[80] transition-all duration-300",
                 isCollapsed ? "md:w-[80px]" : "md:w-64"
             )}>
-                <Sidebar />
+                <Suspense fallback={<div className="h-full w-full bg-sidebar animate-pulse" />}>
+                    <Sidebar />
+                </Suspense>
             </div>
             <main className={cn(
                 "h-full transition-all duration-300",
                 isCollapsed ? "md:pl-[80px]" : "md:pl-64"
             )}>
-                <Header />
+                <Suspense fallback={<div className="h-16 w-full bg-white border-b animate-pulse" />}>
+                    <Header />
+                </Suspense>
                 <div className="p-4 md:p-6 lg:p-8">
                     {children}
                 </div>

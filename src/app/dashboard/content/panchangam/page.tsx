@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import axios from "axios";
+import api from "@/lib/axios";
 import { toast } from "sonner";
 import { Loader2, Save, Sun, Moon, Calendar, Clock, Star, ChevronLeft, ChevronRight, Plus, Trash2, GripVertical, Settings2 } from "lucide-react";
 import { format, addDays, subDays } from "date-fns";
@@ -106,7 +106,7 @@ export default function PanchangamPage() {
         const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
         try {
             const formattedDate = format(date, "yyyy-MM-dd");
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/content/panchangam?date=${formattedDate}`, {
+            const response = await api.get(`/content/panchangam?date=${formattedDate}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 
@@ -173,7 +173,7 @@ export default function PanchangamPage() {
         setIsSaving(true);
         const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
         try {
-            await axios.post("http://localhost:5001/api/panchangam", {
+            await api.post("/panchangam", {
                 date: selectedDate, // Send full date object or ISO string
                 ...data
             }, {

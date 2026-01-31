@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo, useCallback } from "react"
 import { useParams, useRouter } from "next/navigation"
-import axios from "axios"
+import api from "@/lib/axios"
 import { toast } from "sonner"
 import { ArrowLeft, Save, Loader2, Sparkles, Upload, Eye } from "lucide-react"
 
@@ -138,7 +138,7 @@ export default function BlogEditorPage() {
                 try {
                     const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
                     const headers = { 'Authorization': `Bearer ${token}` };
-                    const res = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/blogs/${blogId}`, { headers })
+                    const res = await api.get(`${process.env.NEXT_PUBLIC_API_URL}/api/blogs/${blogId}`, { headers })
                     const data = res.data;
 
                     setTitle(data.title)
@@ -180,7 +180,7 @@ export default function BlogEditorPage() {
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
             const headers = { 'Authorization': `Bearer ${token}` }
-            const response = await axios.get("http://localhost:5001/api/categories", { headers })
+            const response = await api.get("/categories", { headers })
             setAvailableCategories(response.data)
         } catch (error) {
             console.error("Failed to fetch categories", error)
@@ -224,7 +224,7 @@ export default function BlogEditorPage() {
             const formData = new FormData()
             formData.append("image", file)
 
-            const uploadResponse = await axios.post("http://localhost:5001/api/upload", formData, {
+            const uploadResponse = await api.post("/upload", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             })
             setFeaturedImage(uploadResponse.data.url)
@@ -266,11 +266,11 @@ export default function BlogEditorPage() {
 
         try {
             if (isNew) {
-                await axios.post("http://localhost:5001/api/blogs", payload, { headers })
+                await api.post("/blogs", payload, { headers })
                 toast.success("Blog created successfully")
                 router.push("/dashboard/content/blogs")
             } else {
-                await axios.put(`http://localhost:5001/api/blogs/${blogId}`, payload, { headers })
+                await api.put(`/blogs/${blogId}`, payload, { headers })
                 toast.success("Blog updated successfully")
             }
         } catch (error: any) {

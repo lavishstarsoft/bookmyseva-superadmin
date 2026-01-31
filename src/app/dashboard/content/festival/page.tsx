@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import axios from "axios"
+import api from "@/lib/axios"
 import { toast } from "sonner"
 import { Loader2, Save, PartyPopper, Plus, Trash2, GripVertical, Eye, Calendar, FileText } from "lucide-react"
 
@@ -99,7 +99,7 @@ export default function FestivalSettingsPage() {
 
     const fetchFestivalData = async () => {
         try {
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/content/festival`)
+            const response = await api.get(`/content/festival`)
             if (response.data && response.data.content) {
                 const data = response.data.content
                 form.reset({
@@ -127,7 +127,7 @@ export default function FestivalSettingsPage() {
         const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
 
         try {
-            await axios.post("http://localhost:5001/api/content", {
+            await api.post("/content", {
                 identifier: "upcoming-festival",
                 type: "festival",
                 title: "Next Upcoming Festival",

@@ -7,7 +7,7 @@ import { PreferencesForm } from "./preferences-form"
 import { LoginHistory } from "./login-history"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Bell, Shield, User, Camera, Loader2, History } from "lucide-react"
-import axios from "axios"
+import api from "@/lib/axios"
 import { toast } from "sonner"
 
 export default function SettingsProfilePage() {
@@ -25,23 +25,14 @@ export default function SettingsProfilePage() {
     // Fetch user data on mount
     useEffect(() => {
         const fetchUser = async () => {
-            const token = getToken()
-            // If no token, we can't fetch, just stop loading
-            if (!token) {
-                setIsLoading(false)
-                return
-            }
-
             try {
-                const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/user/me`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                })
+                const response = await api.get(`/user/me`)
                 if (response.data.avatar) {
                     setAvatarUrl(response.data.avatar)
                 }
                 setUserData(response.data)
-            } catch (error) {
-                console.error("Error fetching user:", error)
+            } catch {
+                // Error fetching user
             } finally {
                 setIsLoading(false)
             }
@@ -53,38 +44,26 @@ export default function SettingsProfilePage() {
         const file = e.target.files?.[0]
         if (!file) return
 
-        const token = getToken()
-        if (!token) {
-            toast.error("You must be logged in to update your profile")
-            return
-        }
-
         setIsUploading(true)
         const formData = new FormData()
         formData.append("image", file)
 
         try {
-            // 1. Upload to Cloudinary
-            const uploadResponse = await axios.post("http://localhost:5001/api/upload", formData, {
+            // 1. Upload image
+            const uploadResponse = await api.post("/upload", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             })
             const newAvatarUrl = uploadResponse.data.url
 
             // 2. Update User Profile in Database
-            await axios.put("http://localhost:5001/api/user/profile", {
+            await api.put("/user/profile", {
                 avatar: newAvatarUrl
-            }, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
             })
 
             // 3. Update Local State
             setAvatarUrl(newAvatarUrl)
             toast.success("Profile picture updated")
-        } catch (error) {
-            console.error(error)
+        } catch {
             toast.error("Failed to update profile picture")
         } finally {
             setIsUploading(false)

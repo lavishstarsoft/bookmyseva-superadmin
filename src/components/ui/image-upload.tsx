@@ -3,7 +3,7 @@
 import { useState, useCallback } from "react"
 import { Upload, Loader2, ImagePlus, X, Crop as CropIcon, Save } from "lucide-react"
 import { toast } from "sonner"
-import axios from "axios"
+import api from "@/lib/axios"
 import { Button } from "@/components/ui/button"
 import Image from "next/image"
 import Cropper from 'react-easy-crop'
@@ -46,12 +46,10 @@ export const ImageUpload = ({
 
     const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
-        console.log("File selected:", file)
         if (!file) return
 
         // If aspectRatio is provided, open cropper
         if (aspectRatio) {
-            console.log("Opening cropper with ratio (ObjectURL):", aspectRatio)
             const objectUrl = URL.createObjectURL(file)
             setCropImageSrc(objectUrl)
             setIsCropping(true)
@@ -68,7 +66,7 @@ export const ImageUpload = ({
         formData.append("image", file)
 
         try {
-            const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL}/api/upload`, formData, {
+            const response = await api.post(`/upload`, formData, {
                 headers: {
                     "Content-Type": "multipart/form-data",
                 }
@@ -76,9 +74,8 @@ export const ImageUpload = ({
 
             onChange(response.data.url)
             toast.success("Image uploaded successfully")
-        } catch (error) {
+        } catch {
             toast.error("Something went wrong with the upload")
-            console.error(error)
         } finally {
             setIsUploading(false)
         }
@@ -100,7 +97,7 @@ export const ImageUpload = ({
             const file = new File([croppedImageBlob], `crop-${Date.now()}.jpg`, { type: "image/jpeg" })
             formData.append("image", file)
 
-            const uploadResponse = await axios.post("http://localhost:5001/api/upload", formData, {
+            const uploadResponse = await api.post("/upload", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             })
 
@@ -109,8 +106,7 @@ export const ImageUpload = ({
             setCropImageSrc(null)
             toast.success("Image cropped & uploaded")
 
-        } catch (e) {
-            console.error(e)
+        } catch {
             toast.error("Failed to upload cropped image")
         } finally {
             setIsUploadingCrop(false)

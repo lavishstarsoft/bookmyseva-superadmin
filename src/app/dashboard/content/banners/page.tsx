@@ -1,14 +1,12 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { useForm } from "react-hook-form"
+import { useState, useEffect } from "react"
+import { useForm, useFieldArray } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import axios from "axios"
+import api from "@/lib/axios"
 import { toast } from "sonner"
-import { Loader2, Plus, Trash2, Image as ImageIcon, Link as LinkIcon, Save, X, Crop as CropIcon, Smartphone, Monitor, Pencil, MousePointerClick, BarChart3 } from "lucide-react"
-import Cropper from 'react-easy-crop'
-import getCroppedImg from "@/lib/cropImage"
+import { Loader2, Save, Plus, Trash2, Upload, GripVertical, Image as ImageIcon, Crop } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -20,225 +18,139 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Slider } from "@/components/ui/slider"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
-    DialogTrigger,
-} from "@/components/ui/dialog"
+import { Textarea } from "@/components/ui/textarea"
+import { ImageCropper } from "@/components/ui/image-cropper"
 
-// Schema for a single banner
+// Schema
 const bannerSchema = z.object({
-    badge: z.string().optional(), // e.g. "🙏 Welcome"
+    id: z.number(),
+    badge: z.string().min(1, "Badge is required"),
     title: z.string().min(1, "Title is required"),
     subtitle: z.string().optional(),
-    desktopImageUrl: z.string().min(1, "Desktop Image is required"),
-    mobileImageUrl: z.string().min(1, "Mobile Image is required"),
-
-    // Primary CTA
-    ctaText: z.string().optional(),
-    ctaLink: z.string().optional(),
-
-    // Secondary CTA
-    secondaryCtaText: z.string().optional(),
-    secondaryCtaLink: z.string().optional(),
-
-    // Stats (Array of 3 objects)
-    stats: z.array(z.object({
-        value: z.string(), // e.g. "10K+"
-        label: z.string()  // e.g. "Poojas"
-    })).optional()
+    description: z.string().optional(),
+    primaryCTA: z.string().optional(), // Exploring Poojas
+    secondaryCTA: z.string().optional(), // Live Darshan
+    desktopImage: z.string().min(1, "Desktop Image is required"),
+    mobileImage: z.string().min(1, "Mobile Image is required"),
 })
 
-type BannerValues = z.infer<typeof bannerSchema>
+const bannersFormSchema = z.object({
+    banners: z.array(bannerSchema)
+})
+
+type BannersValues = z.infer<typeof bannersFormSchema>
 
 export default function BannersPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
-    const [banners, setBanners] = useState<BannerValues[]>([])
-    const [isDialogOpen, setIsDialogOpen] = useState(false)
-    const [editingIndex, setEditingIndex] = useState<number | null>(null)
+    const [uploadingIndex, setUploadingIndex] = useState<{ index: number, type: 'desktop' | 'mobile' } | null>(null)
 
-    // Form
-    const form = useForm<BannerValues>({
-        resolver: zodResolver(bannerSchema),
+    // Cropper State
+    const [cropperOpen, setCropperOpen] = useState(false)
+    const [selectedImage, setSelectedImage] = useState<string | null>(null)
+    const [cropConfig, setCropConfig] = useState<{ index: number, type: 'desktop' | 'mobile', aspect: number } | null>(null)
+
+    const form = useForm<BannersValues>({
+        resolver: zodResolver(bannersFormSchema),
         defaultValues: {
-            badge: "🙏 Welcome",
-            title: "",
-            subtitle: "",
-            desktopImageUrl: "",
-            mobileImageUrl: "",
-            ctaText: "Learn More",
-            ctaLink: "",
-            secondaryCtaText: "View Video",
-            secondaryCtaLink: "",
-            stats: [
-                { value: "10K+", label: "Poojas" },
-                { value: "500+", label: "Poojaris" },
-                { value: "4.9★", label: "Rating" }
-            ]
+            banners: []
         },
     })
 
-    const fetchBanners = async () => {
-        try {
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/content/banner-1`);
-            if (response.data && response.data.content && Array.isArray(response.data.content)) {
-                setBanners(response.data.content)
-            }
-        } catch (error) {
-            console.error("Failed to fetch banners", error)
-        } finally {
-            setIsLoading(false)
-        }
-    }
+    const { fields, append, remove, move } = useFieldArray({
+        control: form.control,
+        name: "banners"
+    })
 
-    // Fetch Banners
+    // Fetch Initial Data
     useEffect(() => {
-        fetchBanners()
-    }, [])
-
-    // --- CROPPER STATE & LOGIC ---
-    const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
-    const [cropType, setCropType] = useState<"desktop" | "mobile">("desktop") // Which field are we cropping for?
-    const [crop, setCrop] = useState({ x: 0, y: 0 })
-    const [zoom, setZoom] = useState(1)
-    const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
-    const [isCropping, setIsCropping] = useState(false)
-    const [isUploadingCrop, setIsUploadingCrop] = useState(false)
-
-    // 1. Select File -> Open Cropper
-    const onSelectFile = (e: React.ChangeEvent<HTMLInputElement>, type: "desktop" | "mobile") => {
-        if (e.target.files && e.target.files.length > 0) {
-            const file = e.target.files[0]
-            const reader = new FileReader()
-            reader.addEventListener("load", () => {
-                setCropImageSrc(reader.result as string)
-                setCropType(type)
-                setIsCropping(true)
-                setZoom(1)
-                setCrop({ x: 0, y: 0 })
-            })
-            reader.readAsDataURL(file)
+        const fetchData = async () => {
+            try {
+                const response = await api.get(`/content/home-hero`)
+                if (response.data && response.data.content && Array.isArray(response.data.content.slides)) {
+                    form.reset({ banners: response.data.content.slides })
+                } else {
+                    // Initialize with some default if empty or load fallback logic
+                    form.reset({ banners: [] })
+                }
+            } catch (error) {
+                // If 404, it might just mean no config exists yet, which is fine
+                console.log("No existing banner config found or error fetching.")
+            } finally {
+                setIsLoading(false)
+            }
         }
-        // Reset input so same file can be selected again if needed
+        fetchData()
+    }, [form])
+
+    // Image Upload Handler - Step 1: Read File & Open Cropper
+    const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>, index: number, type: 'desktop' | 'mobile') => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const reader = new FileReader()
+        reader.addEventListener('load', () => {
+            setSelectedImage(reader.result as string)
+            setCropConfig({
+                index,
+                type,
+                aspect: type === 'desktop' ? 16 / 9 : 9 / 16
+            })
+            setCropperOpen(true)
+        })
+        reader.readAsDataURL(file)
+
+        // Reset input value so same file can be selected again
         e.target.value = ''
     }
 
-    const onCropComplete = useCallback((croppedArea: any, croppedAreaPixels: any) => {
-        setCroppedAreaPixels(croppedAreaPixels)
-    }, [])
+    // Step 2: Upload Cropped Image
+    const handleCropComplete = async (croppedBlob: Blob) => {
+        if (!cropConfig) return
 
-    // 2. Save Crop -> Upload Blob -> Set URL
-    const onUploadCroppedImage = async () => {
-        if (!cropImageSrc || !croppedAreaPixels) return
+        const { index, type } = cropConfig
+        setCropperOpen(false)
+        setUploadingIndex({ index, type })
 
-        setIsUploadingCrop(true)
+        const formData = new FormData()
+        formData.append("image", croppedBlob, "cropped-image.jpg")
+
         try {
-            const croppedImageBlob = await getCroppedImg(cropImageSrc, croppedAreaPixels)
-            if (!croppedImageBlob) throw new Error("Could not create crop blob")
-
-            const formData = new FormData()
-            // Create a File from the Blob
-            const file = new File([croppedImageBlob], `banner-${cropType}-${Date.now()}.jpg`, { type: "image/jpeg" })
-            formData.append("image", file)
-
-            const uploadResponse = await axios.post("http://localhost:5001/api/upload", formData, {
+            const uploadResponse = await api.post("/upload/upload", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             })
-
             const url = uploadResponse.data.url
-            if (cropType === "desktop") {
-                form.setValue("desktopImageUrl", url, { shouldDirty: true })
-            } else {
-                form.setValue("mobileImageUrl", url, { shouldDirty: true })
-            }
 
-            setIsCropping(false) // Close cropper
-            setCropImageSrc(null)
-            toast.success("Image cropped & uploaded!")
+            const fieldName = type === 'desktop' ? `banners.${index}.desktopImage` : `banners.${index}.mobileImage`
+            form.setValue(fieldName as any, url, { shouldDirty: true })
 
-        } catch (e) {
-            console.error(e)
-            toast.error("Failed to upload cropped image")
+            toast.success("Image cropped & uploaded successfully")
+        } catch {
+            toast.error("Upload failed")
         } finally {
-            setIsUploadingCrop(false)
+            setUploadingIndex(null)
+            setSelectedImage(null)
+            setCropConfig(null)
         }
     }
 
-
-    // --- MAIN FORM ACTIONS ---
-
-    const openAddDialog = () => {
-        setEditingIndex(null)
-        form.reset({
-            badge: "🙏 Welcome",
-            title: "",
-            subtitle: "",
-            desktopImageUrl: "",
-            mobileImageUrl: "",
-            ctaText: "Learn More",
-            ctaLink: "",
-            secondaryCtaText: "View Video",
-            secondaryCtaLink: "",
-            stats: [
-                { value: "10K+", label: "Poojas" },
-                { value: "500+", label: "Poojaris" },
-                { value: "4.9★", label: "Rating" }
-            ]
-        })
-        setIsDialogOpen(true)
-    }
-
-    const onEditBanner = (index: number) => {
-        setEditingIndex(index)
-        form.reset(banners[index])
-        setIsDialogOpen(true)
-    }
-
-    const onSubmitBanner = async (data: BannerValues) => {
-        let newBanners = [...banners]
-        if (editingIndex !== null) {
-            newBanners[editingIndex] = data
-        } else {
-            newBanners = [...banners, data]
-        }
-        await saveBanners(newBanners)
-        setIsDialogOpen(false)
-        form.reset()
-        setEditingIndex(null)
-    }
-
-    const onDeleteBanner = async (index: number) => {
-        const newBanners = banners.filter((_, i) => i !== index)
-        await saveBanners(newBanners)
-    }
-
-    const saveBanners = async (newBanners: BannerValues[]) => {
+    // Submit Handler
+    const onSubmit = async (data: BannersValues) => {
         setIsSaving(true)
-        const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-
         try {
-            await axios.post("http://localhost:5001/api/content", {
-                identifier: "home-banners",
+            await api.post("/content", {
+                identifier: "home-hero",
                 type: "slider",
-                title: "Homepage Hero Banners",
-                content: newBanners
-            }, {
-                headers: { 'Authorization': `Bearer ${token}` }
+                title: "Home Page Hero Slider",
+                content: {
+                    slides: data.banners
+                }
             })
-            setBanners(newBanners)
-            toast.success("Banners updated successfully")
-        } catch (error) {
-            toast.error("Failed to update banners")
-            console.error(error)
+            toast.success("Banners saved successfully")
+        } catch {
+            toast.error("Failed to save banners")
         } finally {
             setIsSaving(false)
         }
@@ -249,419 +161,308 @@ export default function BannersPage() {
     }
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-6 max-w-5xl pb-20">
             <div className="flex items-center justify-between">
                 <div>
-                    <h3 className="text-3xl font-bold tracking-tight text-[#8D0303]">Hero Banners</h3>
+                    <h3 className="text-3xl font-bold tracking-tight text-[#8D0303]">Home Banners</h3>
                     <p className="text-muted-foreground">
-                        Manage the sliding banners on the homepage (Desktop & Mobile).
+                        Manage the sliding banners on the home page.
                     </p>
                 </div>
-                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button onClick={openAddDialog} className="bg-[#8D0303] hover:bg-[#720202] text-white">
-                            <Plus className="mr-2 h-4 w-4" /> Add Banner
-                        </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#8D0303] [&::-webkit-scrollbar-thumb]:rounded-full">
-                        <DialogHeader>
-                            <DialogTitle>{editingIndex !== null ? "Edit Banner" : "Add New Banner"}</DialogTitle>
-                            <DialogDescription>
-                                {editingIndex !== null ? "Update banner details and images." : "Create a new slide. Upload separate images for Desktop and Mobile."}
-                            </DialogDescription>
-                        </DialogHeader>
-                        <Form {...form}>
-                            <form onSubmit={form.handleSubmit(onSubmitBanner)} className="space-y-6">
-                                {/* BADGE Input */}
-                                <FormField
-                                    control={form.control}
-                                    name="badge"
-                                    render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Badge Text</FormLabel>
-                                            <FormControl>
-                                                <Input placeholder="e.g. 🙏 Welcome" {...field} />
-                                            </FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )}
-                                />
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    {/* Title & Subtitle */}
-                                    <FormField
-                                        control={form.control}
-                                        name="title"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Title</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="e.g. Divine Services" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="subtitle"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Subtitle</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="e.g. At Your Doorstep" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                {/* IMAGE UPLOADS ROW */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {/* Desktop Image Field */}
-                                    <FormField
-                                        control={form.control}
-                                        name="desktopImageUrl"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="flex items-center gap-2">
-                                                    <Monitor className="h-4 w-4 text-blue-600" />
-                                                    Desktop Image (16:9)
-                                                </FormLabel>
-                                                <div className="space-y-2">
-                                                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-2 h-32 flex items-center justify-center bg-muted/10 relative overflow-hidden group">
-                                                        {field.value ? (
-                                                            <>
-                                                                <img src={field.value} alt="Desktop Preview" className="h-full w-full object-cover rounded-md" />
-                                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    <Button type="button" variant="secondary" size="sm" className="pointer-events-none">Change</Button>
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="flex flex-col items-center text-muted-foreground">
-                                                                <ImageIcon className="h-6 w-6 mb-1 opacity-50" />
-                                                                <span className="text-[10px]">Select & Crop (Landscape)</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <Button type="button" variant="outline" size="sm" className="w-full relative border-blue-200 hover:bg-blue-50 text-blue-700">
-                                                        <input
-                                                            type="file"
-                                                            className="absolute inset-0 cursor-pointer opacity-0"
-                                                            accept="image/*"
-                                                            onChange={(e) => onSelectFile(e, "desktop")}
-                                                        />
-                                                        {field.value ? "Change Desktop Image" : "Select Desktop Image"}
-                                                    </Button>
-                                                </div>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-
-                                    {/* Mobile Image Field */}
-                                    <FormField
-                                        control={form.control}
-                                        name="mobileImageUrl"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel className="flex items-center gap-2">
-                                                    <Smartphone className="h-4 w-4 text-green-600" />
-                                                    Mobile Image (4:5)
-                                                </FormLabel>
-                                                <div className="space-y-2">
-                                                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-2 h-32 flex items-center justify-center bg-muted/10 relative overflow-hidden group">
-                                                        {field.value ? (
-                                                            <>
-                                                                <img src={field.value} alt="Mobile Preview" className="h-full w-full object-cover rounded-md" />
-                                                                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                                    <Button type="button" variant="secondary" size="sm" className="pointer-events-none">Change</Button>
-                                                                </div>
-                                                            </>
-                                                        ) : (
-                                                            <div className="flex flex-col items-center text-muted-foreground">
-                                                                <ImageIcon className="h-6 w-6 mb-1 opacity-50" />
-                                                                <span className="text-[10px]">Select & Crop (Portrait)</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <Button type="button" variant="outline" size="sm" className="w-full relative border-green-200 hover:bg-green-50 text-green-700">
-                                                        <input
-                                                            type="file"
-                                                            className="absolute inset-0 cursor-pointer opacity-0"
-                                                            accept="image/*"
-                                                            onChange={(e) => onSelectFile(e, "mobile")}
-                                                        />
-                                                        {field.value ? "Change Mobile Image" : "Select Mobile Image"}
-                                                    </Button>
-                                                </div>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="ctaText"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Button Text</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="e.g. Book Now" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="ctaLink"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Button Link</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="e.g. /book-pooja" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                <Separator />
-                                <div className="grid grid-cols-2 gap-4">
-                                    <FormField
-                                        control={form.control}
-                                        name="secondaryCtaText"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Secondary Button Text</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="e.g. View Video" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                    <FormField
-                                        control={form.control}
-                                        name="secondaryCtaLink"
-                                        render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Secondary Button Link</FormLabel>
-                                                <FormControl>
-                                                    <Input placeholder="e.g. /video" {...field} />
-                                                </FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )}
-                                    />
-                                </div>
-
-                                <Separator />
-                                <Label>Stats / Ratings</Label>
-                                <div className="grid grid-cols-3 gap-2">
-                                    {/* Stat 1 */}
-                                    <div className="space-y-2">
-                                        <Input placeholder="Value (e.g. 10K+)" {...form.register(`stats.${0}.value`)} />
-                                        <Input placeholder="Label (e.g. Poojas)" {...form.register(`stats.${0}.label`)} />
-                                    </div>
-                                    {/* Stat 2 */}
-                                    <div className="space-y-2">
-                                        <Input placeholder="Value (e.g. 500+)" {...form.register(`stats.${1}.value`)} />
-                                        <Input placeholder="Label (e.g. Poojaris)" {...form.register(`stats.${1}.label`)} />
-                                    </div>
-                                    {/* Stat 3 */}
-                                    <div className="space-y-2">
-                                        <Input placeholder="Value (e.g. 4.9★)" {...form.register(`stats.${2}.value`)} />
-                                        <Input placeholder="Label (e.g. Rating)" {...form.register(`stats.${2}.label`)} />
-                                    </div>
-                                </div>
-                                <DialogFooter>
-                                    <Button type="submit" className="bg-[#8D0303] text-white hover:bg-[#720202] w-full md:w-auto" disabled={isSaving}>
-                                        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                        {editingIndex !== null ? "Update Banner" : "Save Banner"}
-                                    </Button>
-                                </DialogFooter>
-                            </form>
-                        </Form>
-                    </DialogContent>
-                </Dialog>
-            </div>
-            <Separator />
-
-            {/* Banners List */}
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {banners.map((banner, index) => (
-                    <div key={index} className="group relative rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800 hover:border-zinc-600 transition-all duration-500 shadow-2xl">
-
-                        {/* 1. MAIN DESKTOP PREVIEW (Full Bleed Background) */}
-                        <div className="relative aspect-[16/9] w-full overflow-hidden">
-                            <img
-                                src={banner.desktopImageUrl}
-                                alt="Desktop Banner"
-                                className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-105"
-                            />
-                            {/* Cinematic Overlay Gradient */}
-                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/40 to-transparent opacity-80" />
-
-                            {/* Top Left: Badge */}
-                            {banner.badge && (
-                                <div className="absolute top-4 left-4 bg-white/10 backdrop-blur-md border border-white/20 text-white text-[10px] font-bold px-3 py-1 rounded-full shadow-lg z-10">
-                                    {banner.badge}
-                                </div>
-                            )}
-
-                            {/* Top Right: Actions (Visible on Hover in Desktop, always on Touch if needed) */}
-                            <div className="absolute top-4 right-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-all duration-300 translate-y-[-10px] group-hover:translate-y-0 z-20">
-                                <Button
-                                    variant="secondary"
-                                    size="icon"
-                                    onClick={() => onEditBanner(index)}
-                                    className="h-8 w-8 rounded-full bg-white/20 backdrop-blur-md hover:bg-white text-white hover:text-black border border-white/10"
-                                    title="Edit"
-                                >
-                                    <Pencil className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="destructive"
-                                    size="icon"
-                                    onClick={() => onDeleteBanner(index)}
-                                    className="h-8 w-8 rounded-full bg-red-500/20 backdrop-blur-md hover:bg-red-500 text-red-100 hover:text-white border border-red-500/30"
-                                    title="Delete"
-                                >
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </div>
-
-                            {/* Bottom Content Area (Immersive) */}
-                            <div className="absolute bottom-0 left-0 right-0 p-5 text-white z-10">
-                                <h4 className="text-xl font-bold font-heading leading-tight mb-1 drop-shadow-md">
-                                    {banner.title}
-                                </h4>
-                                {banner.subtitle && (
-                                    <p className="text-sm text-zinc-300 line-clamp-1 mb-3 opacity-90">
-                                        {banner.subtitle}
-                                    </p>
-                                )}
-
-                                {/* Metadata Pills (Glassmorphic) */}
-                                <div className="flex flex-wrap gap-2 text-[10px] font-medium">
-                                    {banner.ctaLink && (
-                                        <div className="flex items-center gap-1.5 bg-white/10 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/10 text-zinc-100">
-                                            <MousePointerClick className="h-3 w-3 text-[#FEB703]" />
-                                            <span>{banner.ctaText || "Primary CTA"}</span>
-                                        </div>
-                                    )}
-                                    {banner.secondaryCtaLink && (
-                                        <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/10 text-zinc-300">
-                                            <LinkIcon className="h-3 w-3" />
-                                            <span>{banner.secondaryCtaText || "Secondary"}</span>
-                                        </div>
-                                    )}
-                                    {banner.stats && banner.stats.length > 0 && (
-                                        <div className="flex items-center gap-1.5 bg-white/5 backdrop-blur-md px-2.5 py-1 rounded-md border border-white/10 text-zinc-300">
-                                            <BarChart3 className="h-3 w-3" />
-                                            <span>{banner.stats.length} Stats</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* 2. MOBILE FLOATING MOCKUP (Hover Reveal/Transition) */}
-                        {/* We position this slightly off-canvas or tucked in, creating a fun parallax feel */}
-                        <div className="absolute -bottom-16 -right-6 w-[28%] aspect-[4/5] bg-black rounded-2xl border-[4px] border-zinc-800 shadow-2xl overflow-hidden rotate-[-12deg] group-hover:rotate-[-6deg] group-hover:bottom-[-20px] group-hover:right-[-10px] transition-all duration-500 ease-out z-20 pointer-events-none">
-                            <div className="relative h-full w-full">
-                                <img
-                                    src={banner.mobileImageUrl}
-                                    alt="Mobile Banner"
-                                    className="h-full w-full object-cover"
-                                />
-                                {/* Mobile Glossy Overlay */}
-                                <div className="absolute inset-0 bg-gradient-to-tr from-black/20 to-transparent pointer-events-none" />
-                            </div>
-                        </div>
-                    </div>
-                ))}
-                {banners.length === 0 && (
-                    <div className="col-span-full py-12 flex flex-col items-center justify-center text-muted-foreground border-2 border-dashed rounded-xl">
-                        <ImageIcon className="h-12 w-12 mb-3 opacity-20" />
-                        <p>No banners added yet.</p>
-                        <p className="text-sm">Click "Add Banner" to get started.</p>
-                    </div>
-                )}
+                <Button
+                    onClick={() => append({
+                        id: Date.now(),
+                        badge: "🙏 Welcome",
+                        title: "New Banner",
+                        subtitle: "Subtitle here",
+                        description: "Description goes here",
+                        primaryCTA: "Explore",
+                        secondaryCTA: "Learn More",
+                        desktopImage: "",
+                        mobileImage: ""
+                    })}
+                    className="bg-[#FEB703] text-[#8D0303] hover:bg-[#FEB703]/90"
+                >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Banner
+                </Button>
             </div>
 
-            {/* CROPPER MODAL/OVERLAY */}
-            {/* CROPPER MODAL/OVERLAY */}
-            <Dialog open={isCropping} onOpenChange={setIsCropping}>
-                <DialogContent className="sm:max-w-[700px] p-0 overflow-hidden bg-zinc-900 border-zinc-800 text-white">
-                    <DialogHeader className="p-4 border-b border-zinc-800">
-                        <DialogTitle className="flex items-center gap-2 text-lg font-bold">
-                            <CropIcon className="h-5 w-5" />
-                            Crop {cropType === "desktop" ? "Desktop" : "Mobile"} Image
-                        </DialogTitle>
-                        <DialogDescription className="text-zinc-400">
-                            Adjust the image to fit the {cropType === "desktop" ? "16:9" : "4:5"} aspect ratio.
-                        </DialogDescription>
-                    </DialogHeader>
+            <Separator className="my-4" />
 
-                    <div className="relative w-full h-[400px] bg-black">
-                        {cropImageSrc && (
-                            <Cropper
-                                image={cropImageSrc}
-                                crop={crop}
-                                zoom={zoom}
-                                aspect={cropType === "desktop" ? 16 / 9 : 4 / 5}
-                                onCropChange={setCrop}
-                                onCropComplete={onCropComplete}
-                                onZoomChange={setZoom}
-                            />
-                        )}
-                    </div>
-
-                    <div className="p-4 bg-zinc-900 border-t border-zinc-800 space-y-4">
-                        <div className="flex items-center gap-4">
-                            <Label className="w-16 text-zinc-300">Zoom</Label>
-                            <Slider
-                                value={[zoom]}
-                                min={1}
-                                max={3}
-                                step={0.1}
-                                onValueChange={(vals: number[]) => setZoom(vals[0])}
-                                className="flex-1"
-                            />
-                        </div>
-                        <div className="flex justify-end gap-3">
-                            <Button variant="outline" type="button" onClick={() => setIsCropping(false)} className="border-zinc-700 bg-transparent text-white hover:bg-zinc-800 hover:text-white">
-                                Cancel
-                            </Button>
+            <Form {...form}>
+                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    {fields.length === 0 ? (
+                        <div className="text-center py-20 bg-muted/20 rounded-xl border border-dashed border-muted-foreground/30">
+                            <ImageIcon className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
+                            <h3 className="text-lg font-medium text-muted-foreground">No Banners Added</h3>
+                            <p className="text-sm text-muted-foreground/70 mb-4">Click "Add Banner" to start creating your home slider.</p>
                             <Button
                                 type="button"
-                                onClick={onUploadCroppedImage}
-                                disabled={isUploadingCrop}
-                                className="bg-[#8D0303] hover:bg-[#720202] text-white"
+                                onClick={() => append({
+                                    id: Date.now(),
+                                    badge: "🙏 New",
+                                    title: "Welcome",
+                                    subtitle: "To BookMySeva",
+                                    description: "Start your spiritual journey today.",
+                                    primaryCTA: "Explore Poojas",
+                                    secondaryCTA: "View Temples",
+                                    desktopImage: "",
+                                    mobileImage: ""
+                                })}
+                                variant="outline"
                             >
-                                {isUploadingCrop ? (
+                                Create First Banner
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="space-y-6">
+                            {fields.map((field, index) => (
+                                <Card key={field.id} className="relative group hover:border-[#FEB703]/50 transition-all duration-300">
+                                    <div className="absolute right-4 top-4 flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity z-10">
+                                        <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="icon"
+                                            className="text-muted-foreground hover:text-foreground cursor-grab active:cursor-grabbing"
+                                            title="Drag to reorder (Coming soon)"
+                                        >
+                                            <GripVertical className="h-4 w-4" />
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            variant="destructive"
+                                            size="icon"
+                                            onClick={() => remove(index)}
+                                            className="h-8 w-8"
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                    </div>
+
+                                    <CardHeader className="pb-3 border-b bg-muted/5">
+                                        <div className="flex items-center gap-2">
+                                            <div className="bg-[#8D0303] text-white text-xs font-bold px-2 py-1 rounded">
+                                                Slide {index + 1}
+                                            </div>
+                                            <CardTitle className="text-lg">
+                                                {form.watch(`banners.${index}.title`) || "Untitled Banner"}
+                                            </CardTitle>
+                                        </div>
+                                    </CardHeader>
+
+                                    <CardContent className="pt-6 grid gap-6">
+                                        {/* Text Content */}
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.badge`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Badge (Small Tag)</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="e.g. 🙏 Welcome" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.title`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Main Title</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="e.g. Divine Services" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.subtitle`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Subtitle</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="e.g. At Your Doorstep" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.description`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Description</FormLabel>
+                                                        <FormControl>
+                                                            <Textarea placeholder="Short description..." className="h-10 min-h-[40px] resize-none" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
+                                        <div className="grid md:grid-cols-2 gap-4">
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.primaryCTA`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Primary Button</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="Button Text" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.secondaryCTA`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Secondary Button</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="Button Text" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+
+                                        <Separator />
+
+                                        {/* Images */}
+                                        <div className="grid md:grid-cols-2 gap-6">
+                                            {/* Desktop Image */}
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.desktopImage`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Desktop Image (Landscape)</FormLabel>
+                                                        <div className="mt-2 border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center h-40 bg-muted/10 relative overflow-hidden transition-colors hover:bg-muted/20">
+                                                            {field.value ? (
+                                                                <img src={field.value} alt="Desktop" className="h-full w-full object-cover rounded-md" />
+                                                            ) : (
+                                                                <div className="text-center">
+                                                                    <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
+                                                                    <span className="text-xs text-muted-foreground">Upload Desktop Image</span>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Upload Overlay */}
+                                                            <div className="absolute inset-0 hover:bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                                                <Button type="button" variant="secondary" size="sm" className="pointer-events-none">
+                                                                    Change & Crop
+                                                                </Button>
+                                                            </div>
+
+                                                            <input
+                                                                type="file"
+                                                                className="absolute inset-0 cursor-pointer opacity-0"
+                                                                accept="image/*"
+                                                                disabled={uploadingIndex?.index === index && uploadingIndex?.type === 'desktop'}
+                                                                onChange={(e) => handleImageSelect(e, index, 'desktop')}
+                                                            />
+
+                                                            {uploadingIndex?.index === index && uploadingIndex?.type === 'desktop' && (
+                                                                <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                                                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            {/* Mobile Image */}
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.mobileImage`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Mobile Image (Portrait)</FormLabel>
+                                                        <div className="mt-2 border-2 border-dashed rounded-lg p-4 flex flex-col items-center justify-center h-40 bg-muted/10 relative overflow-hidden transition-colors hover:bg-muted/20">
+                                                            {field.value ? (
+                                                                <img src={field.value} alt="Mobile" className="h-full w-full object-cover rounded-md" />
+                                                            ) : (
+                                                                <div className="text-center">
+                                                                    <ImageIcon className="mx-auto h-8 w-8 text-muted-foreground/40 mb-2" />
+                                                                    <span className="text-xs text-muted-foreground">Upload Mobile Image</span>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Upload Overlay */}
+                                                            <div className="absolute inset-0 hover:bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                                                                <Button type="button" variant="secondary" size="sm" className="pointer-events-none">
+                                                                    Change & Crop
+                                                                </Button>
+                                                            </div>
+
+                                                            <input
+                                                                type="file"
+                                                                className="absolute inset-0 cursor-pointer opacity-0"
+                                                                accept="image/*"
+                                                                disabled={uploadingIndex?.index === index && uploadingIndex?.type === 'mobile'}
+                                                                onChange={(e) => handleImageSelect(e, index, 'mobile')}
+                                                            />
+
+                                                            {uploadingIndex?.index === index && uploadingIndex?.type === 'mobile' && (
+                                                                <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                                                                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    )}
+
+                    {fields.length > 0 && (
+                        <div className="sticky bottom-4 z-50 flex justify-end bg-background/80 backdrop-blur p-4 rounded-xl border shadow-lg">
+                            <Button type="submit" size="lg" className="bg-[#8D0303] hover:bg-[#720202] text-white shadow-md shadow-red-900/20" disabled={isSaving}>
+                                {isSaving ? (
                                     <>
                                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Uploading...
+                                        Saving Changes...
                                     </>
                                 ) : (
                                     <>
                                         <Save className="mr-2 h-4 w-4" />
-                                        Save Crop & Upload
+                                        Save All Changes
                                     </>
                                 )}
                             </Button>
                         </div>
-                    </div>
-                </DialogContent>
-            </Dialog>
+                    )}
+                </form>
+            </Form>
+
+            {/* Cropper Modal */}
+            {selectedImage && cropConfig && (
+                <ImageCropper
+                    open={cropperOpen}
+                    onClose={() => setCropperOpen(false)}
+                    imageSrc={selectedImage}
+                    aspect={cropConfig.aspect}
+                    onCropComplete={handleCropComplete}
+                />
+            )}
         </div>
     )
 }

@@ -68,11 +68,40 @@ export default function StoragePage() {
         try {
             setLoading(true)
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/storage/files`, {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/storage/files`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
-            setFiles(response.data.files)
-            setStats(response.data.stats)
+            const filesData = response.data?.data || response.data?.files || []
+            
+            // Map files with type detection
+            const mappedFiles = filesData.map((file: { key: string; url: string; size: number; lastModified: string }) => {
+                const ext = file.key.split('.').pop()?.toLowerCase() || ''
+                let type: 'image' | 'video' | 'audio' | 'other' = 'other'
+                if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'bmp'].includes(ext)) type = 'image'
+                else if (['mp4', 'webm', 'mov', 'avi', 'mkv'].includes(ext)) type = 'video'
+                else if (['mp3', 'wav', 'ogg', 'flac', 'aac'].includes(ext)) type = 'audio'
+                return { ...file, type, isUsed: true }
+            })
+            
+            setFiles(mappedFiles)
+            
+            // Compute stats from files
+            const computedStats: StorageStats = {
+                image: { count: 0, size: 0 },
+                video: { count: 0, size: 0 },
+                audio: { count: 0, size: 0 },
+                other: { count: 0, size: 0 },
+                totalSize: 0,
+                totalCount: mappedFiles.length
+            }
+            
+            mappedFiles.forEach((file: StorageFile) => {
+                computedStats[file.type].count++
+                computedStats[file.type].size += file.size || 0
+                computedStats.totalSize += file.size || 0
+            })
+            
+            setStats(computedStats)
         } catch (error) {
             console.error("Failed to fetch storage:", error)
             toast.error("Failed to load storage data")
@@ -84,10 +113,10 @@ export default function StoragePage() {
     const fetchAnalytics = async () => {
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/storage/analytics`, {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/storage/usage`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
-            setAnalytics(response.data)
+            setAnalytics(response.data?.data || response.data)
         } catch (error) {
             console.error("Failed to fetch analytics:", error)
             // Don't show error toast, analytics is optional
@@ -99,7 +128,7 @@ export default function StoragePage() {
 
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/storage/file?key=${encodeURIComponent(key)}`, {
+            await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/storage/files/${encodeURIComponent(key)}`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
             toast.success("File deleted successfully")
@@ -125,7 +154,7 @@ export default function StoragePage() {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
             let deleted = 0
             for (const key of selectedFiles) {
-                await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/storage/file?key=${encodeURIComponent(key)}`, {
+                await axios.delete(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/storage/files/${encodeURIComponent(key)}`, {
                     headers: { Authorization: `Bearer ${token}` }
                 })
                 deleted++
@@ -393,9 +422,9 @@ export default function StoragePage() {
                 </CardHeader>
                 <CardContent className="flex flex-col md:flex-row gap-8">
                     {/* Graph */}
-                    <div className="w-full md:w-1/2 h-[250px]">
+                    <div className="w-full md:w-1/2 min-h-[250px]">
                         <div className="text-xs text-center text-muted-foreground mb-4">Free Tier Monthly Limits</div>
-                        <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height={200} minWidth={200}>
                             <BarChart data={[
                                 { name: 'Class A', limit: 1, label: '1 Million', desc: 'Uploads/Mgmt' },
                                 { name: 'Class B', limit: 10, label: '10 Million', desc: 'Downloads/Views' },

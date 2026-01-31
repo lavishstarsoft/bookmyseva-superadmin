@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
-import axios from "axios"
+import api from "@/lib/axios"
 import { toast } from "sonner"
 import { Loader2, Save, Upload, Youtube, Music, ScrollText } from "lucide-react"
 
@@ -62,14 +62,11 @@ export default function GlobalSettingsPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
-                const headers = { 'Authorization': `Bearer ${token}` };
-
                 // Fetch Site Config
-                const siteConfigRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/content/site-config`)
+                const siteConfigRes = await api.get(`/content/site-config`)
 
                 // Fetch App Config
-                const appConfigRes = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/app-config`, { headers })
+                const appConfigRes = await api.get(`/app-config`)
 
                 let mergedData = {}
                 if (siteConfigRes.data && siteConfigRes.data.content) {
@@ -80,8 +77,7 @@ export default function GlobalSettingsPage() {
                 }
 
                 form.reset(mergedData)
-            } catch (error) {
-                console.error("Failed to fetch settings", error)
+            } catch {
                 toast.error("Failed to load some settings")
             } finally {
                 setIsLoading(false)
@@ -102,13 +98,13 @@ export default function GlobalSettingsPage() {
         formData.append("image", file)
 
         try {
-            const uploadResponse = await axios.post("http://localhost:5001/api/upload", formData, {
+            const uploadResponse = await api.post("/upload", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             })
             const url = uploadResponse.data.url
             form.setValue(fieldName, url, { shouldDirty: true })
             toast.success("Image uploaded successfully")
-        } catch (error) {
+        } catch {
             toast.error("Upload failed")
         } finally {
             if (fieldName === "logoUrl") setIsUploading(false)
@@ -126,14 +122,13 @@ export default function GlobalSettingsPage() {
         formData.append("file", file)
 
         try {
-            const uploadResponse = await axios.post("http://localhost:5001/api/upload-file", formData, {
+            const uploadResponse = await api.post("/upload-file", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             })
             const url = uploadResponse.data.url
             form.setValue("audioStreamUrl", url, { shouldDirty: true })
             toast.success("Audio uploaded successfully")
-        } catch (error) {
-            console.error(error)
+        } catch {
             toast.error("Audio upload failed")
         } finally {
             setIsUploadingAudio(false)
@@ -148,7 +143,7 @@ export default function GlobalSettingsPage() {
 
         try {
             // 1. Save Site Config (Legacy/Global)
-            await axios.post("http://localhost:5001/api/content", {
+            await api.post("/content", {
                 identifier: "site-config",
                 type: "config",
                 title: "Global Site Settings",
@@ -158,19 +153,18 @@ export default function GlobalSettingsPage() {
                     audioStreamUrl: data.audioStreamUrl,
                     headerMarqueeText: data.headerMarqueeText
                 }
-            }, { headers })
+            })
 
             // 2. Save App Config
-            await axios.post("http://localhost:5001/api/app-config", {
+            await api.post("/app-config", {
                 androidLink: data.androidLink,
                 iosLink: data.iosLink,
                 androidQrImage: data.androidQrImage,
                 iosQrImage: data.iosQrImage,
-            }, { headers })
+            })
 
             toast.success("All settings saved successfully")
-        } catch (error) {
-            console.error(error)
+        } catch {
             toast.error("Failed to save settings")
         } finally {
             setIsSaving(false)

@@ -1,8 +1,8 @@
 "use strict";
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import axios from "axios";
+import { useEffect, useState, useRef, Suspense } from "react";
+import api from "@/lib/axios";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import {
@@ -43,7 +43,7 @@ interface Enquiry {
     createdAt: string;
 }
 
-export default function EnquiriesPage() {
+function EnquiriesContent() {
     const searchParams = useSearchParams();
     const defaultTab = searchParams.get("type") || "all";
 
@@ -77,32 +77,23 @@ export default function EnquiriesPage() {
 
     const fetchFestivalData = async () => {
         try {
-            const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
             // Fetch Upcoming Festival Config
-            const response = await axios.get("http://localhost:5001/api/content/upcoming-festival", {
-                headers: { Authorization: `Bearer ${token}` }
-            });
+            const response = await api.get("/content/upcoming-festival");
             if (response.data && response.data.content && response.data.content.formFields) {
                 setFestivalFields(response.data.content.formFields);
             }
-        } catch (error) {
-            console.error("Failed to fetch festival fields", error);
+        } catch {
+            // Failed to fetch festival fields
         }
     };
 
     const fetchEnquiries = async () => {
         try {
-            const token = document.cookie
-                .split('; ')
-                .find((row) => row.startsWith('token='))
-                ?.split('=')[1];
-
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/enquiries`, {
-                headers: { Authorization: `Bearer ${token}` }
-            });
-            setEnquiries(response.data.enquiries);
-        } catch (error) {
-            console.error("Failed to fetch enquiries", error);
+            const response = await api.get(`/enquiries`);
+            setEnquiries(response.data?.enquiries || []);
+        } catch {
+            setEnquiries([]);
+            // Failed to fetch enquiries
         } finally {
             setLoading(false);
         }
@@ -134,7 +125,7 @@ export default function EnquiriesPage() {
     }, [searchParams]);
 
     // Filter Logic
-    const filteredEnquiries = enquiries.filter(enquiry => {
+    const filteredEnquiries = (enquiries || []).filter(enquiry => {
         const isPanchangam = Array.isArray(enquiry.formData);
         if (activeTab === "panchangam") return isPanchangam;
         if (activeTab === "festival") return !isPanchangam;
@@ -332,14 +323,12 @@ export default function EnquiriesPage() {
                                                 className="bg-[#8D0303] hover:bg-[#720202] text-white"
                                                 onClick={async () => {
                                                     try {
-                                                        const token = document.cookie.split('; ').find(row => row.startsWith('token='))?.split('=')[1];
-                                                        await axios.patch(`http://localhost:5001/api/enquiries/${selectedEnquiry._id}`,
+                                                        await api.patch(`/enquiries/${selectedEnquiry._id}`,
                                                             {
                                                                 status: 'Contacted',
                                                                 contactNote: contactNote.trim() || undefined,
                                                                 contactedAt: new Date().toISOString()
-                                                            },
-                                                            { headers: { Authorization: `Bearer ${token}` } }
+                                                            }
                                                         );
                                                         // Update local state
                                                         setEnquiries(prev => prev.map(e => e._id === selectedEnquiry._id ? {
@@ -352,8 +341,7 @@ export default function EnquiriesPage() {
                                                         setContactNote("");
                                                         setShowNoteInput(false);
                                                         toast.success("Updated!", { description: "Enquiry marked as contacted successfully." });
-                                                    } catch (err) {
-                                                        console.error(err);
+                                                    } catch {
                                                         toast.error("Failed to update status");
                                                     }
                                                 }}
@@ -387,6 +375,14 @@ export default function EnquiriesPage() {
                 }
             `}</style>
         </div >
+    );
+}
+
+export default function EnquiriesPage() {
+    return (
+        <Suspense fallback={<div>Loading...</div>}>
+            <EnquiriesContent />
+        </Suspense>
     );
 }
 

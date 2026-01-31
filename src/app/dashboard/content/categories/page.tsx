@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useState, useEffect } from "react"
-import axios from "axios"
+import api from "@/lib/axios"
 import { toast } from "sonner"
 import { Plus, Trash2, Tag, ArrowLeft, Pencil } from "lucide-react"
 
@@ -51,13 +51,9 @@ export default function CategoriesPage() {
 
     const fetchCategories = async () => {
         try {
-            const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            const headers = { 'Authorization': `Bearer ${token}` }
-            // Using absolute URL for consistency, but relative works if proxy set nicely
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/categories`, { headers })
-            setCategories(response.data)
-        } catch (error) {
-            console.error("Failed to fetch categories", error)
+            const response = await api.get(`/categories`)
+            setCategories(response.data || [])
+        } catch {
             toast.error("Failed to load categories")
         } finally {
             setIsLoading(false)
@@ -69,22 +65,20 @@ export default function CategoriesPage() {
 
         try {
             setIsSubmitting(true)
-            const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            const headers = { 'Authorization': `Bearer ${token}` }
 
             if (editingCategory) {
                 // Update
-                const response = await axios.put(`http://localhost:5001/api/categories/${editingCategory._id}`, {
+                const response = await api.put(`/categories/${editingCategory._id}`, {
                     name: newCategoryName
-                }, { headers })
+                })
 
                 setCategories(categories.map(cat => cat._id === editingCategory._id ? response.data : cat))
                 toast.success("Category updated successfully")
             } else {
                 // Create
-                const response = await axios.post("http://localhost:5001/api/categories", {
+                const response = await api.post("/categories", {
                     name: newCategoryName
-                }, { headers })
+                })
 
                 setCategories([response.data, ...categories])
                 toast.success("Category created successfully")
@@ -93,8 +87,8 @@ export default function CategoriesPage() {
             setNewCategoryName("")
             setEditingCategory(null)
             setIsDialogOpen(false)
-        } catch (error: any) {
-            const msg = error.response?.data?.message || "Failed to save category"
+        } catch (error: unknown) {
+            const msg = (error as { response?: { data?: { message?: string } } })?.response?.data?.message || "Failed to save category"
             toast.error(msg)
         } finally {
             setIsSubmitting(false)
@@ -105,12 +99,10 @@ export default function CategoriesPage() {
         if (!confirm("Are you sure? This will not remove the category from existing blogs, but it won't be available for new ones.")) return
 
         try {
-            const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            const headers = { 'Authorization': `Bearer ${token}` }
-            await axios.delete(`http://localhost:5001/api/categories/${id}`, { headers })
+            await api.delete(`/categories/${id}`)
             setCategories(categories.filter(cat => cat._id !== id))
             toast.success("Category deleted")
-        } catch (error) {
+        } catch {
             toast.error("Failed to delete category")
         }
     }

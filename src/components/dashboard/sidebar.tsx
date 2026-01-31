@@ -29,7 +29,7 @@ import {
     Database
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import axios from "axios";
+import api from "@/lib/axios";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useState, useEffect } from "react";
 import { useSidebar } from "./sidebar-context";
@@ -201,12 +201,12 @@ export function Sidebar({ isMobile = false, onClose }: { isMobile?: boolean, onC
     useEffect(() => {
         const fetchLogo = async () => {
             try {
-                const response = await axios.get("http://localhost:5001/api/content/site-config");
+                const response = await api.get("/content/site-config");
                 if (response.data?.content?.logoUrl) {
                     setLogoUrl(response.data.content.logoUrl);
                 }
-            } catch (error) {
-                console.error("Failed to fetch logo", error);
+            } catch {
+                // Failed to fetch logo - use default
             }
         };
         fetchLogo();

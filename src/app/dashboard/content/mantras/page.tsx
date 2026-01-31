@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import axios from "axios";
+import api from "@/lib/axios";
 import { toast } from "sonner";
 import {
     Loader2, Plus, Pencil, Trash2,
@@ -67,10 +67,10 @@ export default function MantrasPage() {
         setIsLoading(true);
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/content/daily-mantra`, {
+            const response = await api.get(`/mantras`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            setItems(response.data);
+            setItems(response.data || []);
         } catch (error) {
             console.error(error);
             toast.error("Failed to fetch mantras");
@@ -90,10 +90,10 @@ export default function MantrasPage() {
             const headers = { 'Authorization': `Bearer ${token}` };
 
             if (editingItem) {
-                await axios.put(`http://localhost:5001/api/mantras/${editingItem._id}`, data, { headers });
+                await api.put(`/mantras/${editingItem._id}`, data, { headers });
                 toast.success("Mantra updated successfully");
             } else {
-                await axios.post("http://localhost:5001/api/mantras", data, { headers });
+                await api.post("/mantras", data, { headers });
                 toast.success("Mantra created successfully");
             }
 
@@ -111,7 +111,7 @@ export default function MantrasPage() {
         if (!confirm("Are you sure you want to delete this mantra?")) return;
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
-            await axios.delete(`http://localhost:5001/api/mantras/${id}`, {
+            await api.delete(`/mantras/${id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             toast.success("Mantra deleted");
@@ -124,7 +124,7 @@ export default function MantrasPage() {
     const toggleStatus = async (item: MantraItem) => {
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
-            await axios.put(`http://localhost:5001/api/mantras/${item._id}`,
+            await api.put(`/mantras/${item._id}`,
                 { isActive: !item.isActive },
                 { headers: { 'Authorization': `Bearer ${token}` } }
             );

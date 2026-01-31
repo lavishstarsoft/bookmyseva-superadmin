@@ -94,10 +94,10 @@ export default function ReviewsPage() {
         try {
             setLoading(true)
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/reviews/all`, {
+            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/reviews/all`, {
                 headers: { Authorization: `Bearer ${token}` }
             })
-            setReviews(response.data)
+            setReviews(response.data || [])
         } catch (error) {
             console.error("Error fetching reviews:", error)
             toast.error("Failed to load reviews")

@@ -1,119 +1,145 @@
-"use strict";
 "use client";
 
-import { createContext, useContext, useEffect, useState, useRef } from "react";
-import { io as ClientIO } from "socket.io-client";
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
+import { io as ClientIO, Socket } from "socket.io-client";
 import { toast } from "sonner";
+import { getBaseUrl } from "@/lib/axios";
 
 type SocketContextType = {
-    socket: any | null;
+    socket: Socket | null;
     isConnected: boolean;
     unreadCount: number;
-    latestEnquiries: any[];
+    latestEnquiries: EnquiryNotification[];
     markAsRead: () => void;
     clearNotifications: () => void;
 };
+
+interface EnquiryNotification {
+    _id: string;
+    festivalName: string;
+    userDetails?: {
+        name: string;
+        email?: string;
+        phone?: string;
+    };
+    createdAt: string;
+}
 
 const SocketContext = createContext<SocketContextType>({
     socket: null,
     isConnected: false,
     unreadCount: 0,
     latestEnquiries: [],
-    markAsRead: () => { },
-    clearNotifications: () => { },
+    markAsRead: () => {},
+    clearNotifications: () => {},
 });
 
 export const useSocket = () => {
     return useContext(SocketContext);
 };
 
+// Helper to get token from cookie
+const getTokenFromCookie = (): string | null => {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(new RegExp('(^| )token=([^;]+)'));
+    return match ? match[2] : null;
+};
+
 export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
-    const [socket, setSocket] = useState<any | null>(null);
+    const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
-    const [latestEnquiries, setLatestEnquiries] = useState<any[]>([]);
+    const [latestEnquiries, setLatestEnquiries] = useState<EnquiryNotification[]>([]);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const audioUnlockedRef = useRef(false);
 
-    // Initialize audio and unlock on first user interaction
+    // Initialize audio on first user interaction
     useEffect(() => {
-        // Create audio element
         audioRef.current = new Audio("/sounds/notification.mp3");
         audioRef.current.preload = "auto";
 
-        // Function to unlock audio on user interaction
         const unlockAudio = () => {
             if (audioRef.current && !audioUnlockedRef.current) {
-                // Play and immediately pause to unlock
                 audioRef.current.play().then(() => {
                     audioRef.current?.pause();
-                    audioRef.current!.currentTime = 0;
+                    if (audioRef.current) audioRef.current.currentTime = 0;
                     audioUnlockedRef.current = true;
-                    console.log("🔊 Audio unlocked for notifications");
                 }).catch(() => {
-                    // Silent catch - will try again on next interaction
+                    // Silent catch - will retry on next interaction
                 });
             }
         };
 
-        // Add listeners for user interaction
-        document.addEventListener("click", unlockAudio, { once: false });
-        document.addEventListener("keydown", unlockAudio, { once: false });
-        document.addEventListener("touchstart", unlockAudio, { once: false });
+        const events = ["click", "keydown", "touchstart"];
+        events.forEach(event => document.addEventListener(event, unlockAudio, { once: true }));
 
         return () => {
-            document.removeEventListener("click", unlockAudio);
-            document.removeEventListener("keydown", unlockAudio);
-            document.removeEventListener("touchstart", unlockAudio);
+            events.forEach(event => document.removeEventListener(event, unlockAudio));
         };
     }, []);
 
-    // Function to play notification sound
-    const playNotificationSound = () => {
-        if (audioRef.current) {
+    // Play notification sound
+    const playNotificationSound = useCallback(() => {
+        if (audioRef.current && audioUnlockedRef.current) {
             audioRef.current.currentTime = 0;
-            audioRef.current.play().catch(e => {
-                console.log("Audio play failed - user interaction required first");
+            audioRef.current.play().catch(() => {
+                // Audio play failed - user interaction required
             });
         }
-    };
+    }, []);
 
+    // Socket connection with authentication
     useEffect(() => {
-        // Connect to Backend URL
-        const socketInstance = ClientIO(process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001", {
-            path: "/api/socket.io",
-            transports: ["websocket"], // Force websocket
+        const token = getTokenFromCookie();
+        
+        // Don't connect if no token
+        if (!token) {
+            return;
+        }
+
+        const socketInstance = ClientIO(getBaseUrl(), {
+            path: "/socket.io",
+            transports: ["websocket", "polling"],
+            auth: {
+                token, // Send token for authentication
+            },
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
         });
 
         socketInstance.on("connect", () => {
-            console.log("Socket Connected:", socketInstance.id);
             setIsConnected(true);
         });
 
         socketInstance.on("disconnect", () => {
-            console.log("Socket Disconnected");
             setIsConnected(false);
         });
 
-        // Listen for New Enquiry
-        socketInstance.on("new_enquiry", (data: any) => {
-            console.log("New Enquiry Received:", data);
+        socketInstance.on("connect_error", (error) => {
+            if (error.message === "Authentication error") {
+                // Token invalid - clear and redirect
+                document.cookie = 'token=; Max-Age=0; path=/;';
+            }
+            setIsConnected(false);
+        });
 
-            // Play Sound
+        // Listen for new enquiries
+        socketInstance.on("new_enquiry", (data: EnquiryNotification) => {
             playNotificationSound();
 
-            // Show Toast
             toast("🔔 New Booking Received!", {
                 description: `${data.userDetails?.name || 'Guest'} booked ${data.festivalName}`,
                 action: {
                     label: "View",
-                    onClick: () => window.location.href = "/dashboard/enquiries",
+                    onClick: () => {
+                        window.location.href = "/dashboard/enquiries";
+                    },
                 },
             });
 
-            // Update State
             setUnreadCount((prev) => prev + 1);
-            setLatestEnquiries((prev) => [data, ...prev].slice(0, 5)); // Keep last 5
+            setLatestEnquiries((prev) => [data, ...prev].slice(0, 5));
         });
 
         setSocket(socketInstance);
@@ -121,16 +147,16 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         return () => {
             socketInstance.disconnect();
         };
+    }, [playNotificationSound]);
+
+    const markAsRead = useCallback(() => {
+        setUnreadCount(0);
     }, []);
 
-    const markAsRead = () => {
-        setUnreadCount(0);
-    };
-
-    const clearNotifications = () => {
+    const clearNotifications = useCallback(() => {
         setLatestEnquiries([]);
         setUnreadCount(0);
-    };
+    }, []);
 
     return (
         <SocketContext.Provider

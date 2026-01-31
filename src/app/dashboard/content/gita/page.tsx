@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import axios from "axios";
+import api from "@/lib/axios";
 import { toast } from "sonner";
 import {
     Loader2, Plus, Pencil, Trash2,
@@ -93,10 +93,10 @@ export default function GitaPage() {
         setIsLoading(true);
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/content/gita-sloka?type=${activeTab}`, {
+            const response = await api.get(`/content/gita-sloka?type=${activeTab}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
-            setItems(response.data);
+            setItems(response.data || []);
         } catch (error) {
             console.error(error);
             toast.error("Failed to fetch content");
@@ -119,10 +119,10 @@ export default function GitaPage() {
             const headers = { 'Authorization': `Bearer ${token}` };
 
             if (editingItem) {
-                await axios.put(`http://localhost:5001/api/gita/${editingItem._id}`, data, { headers });
+                await api.put(`/gita/${editingItem._id}`, data, { headers });
                 toast.success("Updated successfully");
             } else {
-                await axios.post("http://localhost:5001/api/gita", data, { headers });
+                await api.post("/gita", data, { headers });
                 toast.success("Created successfully");
             }
 
@@ -140,7 +140,7 @@ export default function GitaPage() {
         if (!confirm("Are you sure you want to delete this item?")) return;
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
-            await axios.delete(`http://localhost:5001/api/gita/${id}`, {
+            await api.delete(`/gita/${id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             toast.success("Deleted successfully");

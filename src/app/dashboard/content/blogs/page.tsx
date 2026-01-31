@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import axios from "axios"
+import api from "@/lib/axios"
 import { toast } from "sonner"
 import { Plus, Search, FileText, Calendar, MoreVertical, Edit, Trash2, Eye, Tag } from "lucide-react"
 
@@ -43,8 +43,8 @@ export default function BlogsPage() {
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
             const headers = { 'Authorization': `Bearer ${token}` }
-            const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/blogs`, { headers })
-            setBlogs(response.data)
+            const response = await api.get(`/blogs`, { headers })
+            setBlogs(response.data || [])
         } catch (error) {
             console.error("Failed to fetch blogs", error)
             toast.error("Failed to load blogs")
@@ -60,7 +60,7 @@ export default function BlogsPage() {
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
             const headers = { 'Authorization': `Bearer ${token}` }
-            await axios.delete(`http://localhost:5001/api/blogs/${id}`, { headers })
+            await api.delete(`/blogs/${id}`, { headers })
             setBlogs(blogs.filter(blog => blog._id !== id))
             toast.success("Blog deleted successfully")
         } catch (error) {

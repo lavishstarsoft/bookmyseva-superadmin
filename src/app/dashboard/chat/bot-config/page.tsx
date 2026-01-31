@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import axios from "axios"
+import api from "@/lib/axios"
 import { toast } from "sonner"
 import { Bot, Plus, Trash2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -53,12 +53,12 @@ export default function BotConfigPage() {
             const headers = { 'Authorization': `Bearer ${token}` }
 
             const [intentsRes, actionsRes] = await Promise.all([
-                axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/chat/intents`, { headers }),
-                axios.get(`${process.env.NEXT_PUBLIC_API_URL}/api/chat/quick-actions/all`, { headers })
+                api.get(`/chat/intents`, { headers }),
+                api.get(`/chat/quick-actions/all`, { headers })
             ])
 
-            setIntents(intentsRes.data)
-            setQuickActions(actionsRes.data)
+            setIntents(intentsRes.data?.data || intentsRes.data || [])
+            setQuickActions(actionsRes.data?.data || actionsRes.data || [])
         } catch (error) {
             toast.error("Failed to load data")
         } finally {
@@ -72,10 +72,10 @@ export default function BotConfigPage() {
             const headers = { 'Authorization': `Bearer ${token}` }
 
             if (editingIntent?._id) {
-                await axios.put(`http://localhost:5001/api/chat/intents/${editingIntent._id}`, data, { headers })
+                await api.put(`/chat/intents/${editingIntent._id}`, data, { headers })
                 toast.success("Intent updated")
             } else {
-                await axios.post("http://localhost:5001/api/chat/intents", data, { headers })
+                await api.post("/chat/intents", data, { headers })
                 toast.success("Intent created")
             }
 
@@ -91,7 +91,7 @@ export default function BotConfigPage() {
 
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            await axios.delete(`http://localhost:5001/api/chat/intents/${id}`, {
+            await api.delete(`/chat/intents/${id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
             toast.success("Intent deleted")
@@ -106,7 +106,7 @@ export default function BotConfigPage() {
 
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            await axios.delete(`http://localhost:5001/api/chat/quick-actions/${id}`, {
+            await api.delete(`/chat/quick-actions/${id}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
             toast.success("Action deleted")
@@ -122,10 +122,10 @@ export default function BotConfigPage() {
             const headers = { 'Authorization': `Bearer ${token}` }
 
             if (editingAction?._id) {
-                await axios.put(`http://localhost:5001/api/chat/quick-actions/${editingAction._id}`, data, { headers })
+                await api.put(`/chat/quick-actions/${editingAction._id}`, data, { headers })
                 toast.success("Action updated")
             } else {
-                await axios.post("http://localhost:5001/api/chat/quick-actions", data, { headers })
+                await api.post("/chat/quick-actions", data, { headers })
                 toast.success("Action created")
             }
 
