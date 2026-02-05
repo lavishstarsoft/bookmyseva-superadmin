@@ -35,13 +35,15 @@ export default function RichTextEditor({
 
     // Load scripts in order and inject CSS
     useEffect(() => {
+        const basePath = '/superadmin';
+
         // Inject CSS
         const cssId = 'rte-theme-css'
         if (!document.getElementById(cssId)) {
             const link = document.createElement('link')
             link.id = cssId
             link.rel = 'stylesheet'
-            link.href = '/richtexteditor/rte_theme_default.css'
+            link.href = `${basePath}/richtexteditor/rte_theme_default.css`
             document.head.appendChild(link)
         }
 
@@ -53,13 +55,13 @@ export default function RichTextEditor({
 
         // Load main rte.js first
         const rteScript = document.createElement('script')
-        rteScript.src = '/richtexteditor/rte.js'
+        rteScript.src = `${basePath}/richtexteditor/rte.js`
         rteScript.async = false
 
         rteScript.onload = () => {
             // After main script loads, load plugins
             const pluginsScript = document.createElement('script')
-            pluginsScript.src = '/richtexteditor/plugins/all_plugins.js'
+            pluginsScript.src = `${basePath}/richtexteditor/plugins/all_plugins.js`
             pluginsScript.async = false
 
             pluginsScript.onload = () => {
