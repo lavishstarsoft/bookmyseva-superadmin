@@ -60,13 +60,13 @@ function addSecurityHeaders(response: NextResponse): NextResponse {
 }
 
 // Configure which routes the middleware runs on
-export const config = {
-    matcher: [
-        /*
-         * Match all paths except:
-         * - _next (Next.js internals)
-         * - Static files with extensions
-         */
-        '/((?!_next/static|_next/image|favicon.ico|.*\\..*).*)',
-    ],
+matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+],
 };
