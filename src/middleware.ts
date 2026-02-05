@@ -6,7 +6,7 @@ const publicRoutes = ['/login', '/forgot-password', '/reset-password'];
 
 export function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
-    
+
     // Skip if it's a static file or API request
     if (
         pathname.startsWith('/_next') ||
@@ -15,38 +15,38 @@ export function middleware(request: NextRequest) {
     ) {
         return NextResponse.next();
     }
-    
+
     // Get token from cookies
     const token = request.cookies.get('token')?.value;
-    
+
     // Check if the route is public
     const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(`${route}/`));
-    
+
     // Root path "/" - redirect to login or dashboard based on auth
     if (pathname === '/') {
         if (token) {
-            return NextResponse.redirect(new URL('/dashboard', request.url));
+            return NextResponse.redirect(new URL('/superadmin/dashboard', request.url));
         } else {
-            return NextResponse.redirect(new URL('/login', request.url));
+            return NextResponse.redirect(new URL('/superadmin/login', request.url));
         }
     }
-    
+
     // Public routes - if logged in and on login page, redirect to dashboard
     if (isPublicRoute) {
         if (token && pathname === '/login') {
-            return NextResponse.redirect(new URL('/dashboard', request.url));
+            return NextResponse.redirect(new URL('/superadmin/dashboard', request.url));
         }
         // Allow access to public routes
         return addSecurityHeaders(NextResponse.next());
     }
-    
+
     // Protected routes (everything else that's not public)
     if (!token) {
-        const loginUrl = new URL('/login', request.url);
+        const loginUrl = new URL('/superadmin/login', request.url);
         loginUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(loginUrl);
     }
-    
+
     return addSecurityHeaders(NextResponse.next());
 }
 

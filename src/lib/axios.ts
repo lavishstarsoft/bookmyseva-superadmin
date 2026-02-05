@@ -58,7 +58,7 @@ api.interceptors.response.use(
             }
             // Redirect to login (client-side only)
             if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
-                window.location.href = '/login';
+                window.location.href = '/superadmin/login';
             }
         }
         return Promise.reject(error);
