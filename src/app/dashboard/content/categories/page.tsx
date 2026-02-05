@@ -1,3 +1,4 @@
+"use client"
 
 import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 
