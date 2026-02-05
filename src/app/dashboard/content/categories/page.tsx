@@ -1,4 +1,5 @@
-"use client"
+
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 
 import Link from "next/link"
 import { useState, useEffect } from "react"
@@ -37,6 +38,8 @@ export default function CategoriesPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [editingCategory, setEditingCategory] = useState<any>(null)
+    const [deleteId, setDeleteId] = useState<string | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     useEffect(() => {
         if (!isDialogOpen) {
@@ -95,15 +98,19 @@ export default function CategoriesPage() {
         }
     }
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure? This will not remove the category from existing blogs, but it won't be available for new ones.")) return
+    const handleDelete = async () => {
+        if (!deleteId) return
 
         try {
-            await api.delete(`/categories/${id}`)
-            setCategories(categories.filter(cat => cat._id !== id))
+            setIsDeleting(true)
+            await api.delete(`/categories/${deleteId}`)
+            setCategories(categories.filter(cat => cat._id !== deleteId))
             toast.success("Category deleted")
+            setDeleteId(null)
         } catch {
             toast.error("Failed to delete category")
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -226,7 +233,7 @@ export default function CategoriesPage() {
                                                     variant="ghost"
                                                     size="icon"
                                                     className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                    onClick={() => handleDelete(category._id)}
+                                                    onClick={() => setDeleteId(category._id)}
                                                 >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
@@ -239,6 +246,14 @@ export default function CategoriesPage() {
                     </div>
                 </CardContent>
             </Card>
+            <DeleteConfirmDialog
+                open={!!deleteId}
+                onOpenChange={(open) => !open && setDeleteId(null)}
+                onConfirm={handleDelete}
+                isDeleting={isDeleting}
+                title="Delete Category"
+                description="Are you sure? This will not remove the category from existing blogs, but it won't be available for new ones."
+            />
         </div>
     )
 }

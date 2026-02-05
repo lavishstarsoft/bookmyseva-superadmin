@@ -1,5 +1,7 @@
 "use client";
 
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+
 import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -71,6 +73,8 @@ export default function GitaPage() {
     const [activeTab, setActiveTab] = useState("gita");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<GitaItem | null>(null);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const form = useForm<GitaValues>({
         resolver: zodResolver(gitaSchema) as any,
@@ -136,17 +140,21 @@ export default function GitaPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this item?")) return;
+    const handleDelete = async () => {
+        if (!deleteId) return;
+        setIsDeleting(true);
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
-            await api.delete(`/gita/${id}`, {
+            await api.delete(`/gita/${deleteId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             toast.success("Deleted successfully");
             fetchItems();
+            setDeleteId(null);
         } catch (error) {
             toast.error("Failed to delete");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -234,7 +242,7 @@ export default function GitaPage() {
                                             <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => openEditDialog(item)}>
                                                 <Pencil className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={() => handleDelete(item._id)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={() => setDeleteId(item._id)}>
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>
@@ -408,6 +416,15 @@ export default function GitaPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
+
+            <DeleteConfirmDialog
+                open={!!deleteId}
+                onOpenChange={(open) => !open && setDeleteId(null)}
+                onConfirm={handleDelete}
+                isDeleting={isDeleting}
+                title="Delete Content"
+                description="Are you sure you want to delete this content? This action cannot be undone."
+            />
         </div>
     );
 }

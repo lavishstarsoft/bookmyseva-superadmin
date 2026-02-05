@@ -5,6 +5,7 @@ import api from "@/lib/axios"
 import { toast } from "sonner"
 import { Bot, Plus, Trash2, Save } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -42,6 +43,10 @@ export default function BotConfigPage() {
     const [loading, setLoading] = useState(true)
     const [editingIntent, setEditingIntent] = useState<Partial<Intent> | null>(null)
     const [editingAction, setEditingAction] = useState<Partial<QuickAction> | null>(null)
+
+    // Delete State
+    const [deleteContext, setDeleteContext] = useState<{ type: 'intent' | 'action', id: string } | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     useEffect(() => {
         fetchData()
@@ -86,33 +91,28 @@ export default function BotConfigPage() {
         }
     }
 
-    const deleteIntent = async (id: any) => {
-        if (!confirm("Delete this intent?")) return
+    const handleConfirmDelete = async () => {
+        if (!deleteContext) return
 
+        setIsDeleting(true)
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            await api.delete(`/chat/intents/${id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-            toast.success("Intent deleted")
+            const headers = { 'Authorization': `Bearer ${token}` }
+
+            if (deleteContext.type === 'intent') {
+                await api.delete(`/chat/intents/${deleteContext.id}`, { headers })
+                toast.success("Intent deleted")
+            } else {
+                await api.delete(`/chat/quick-actions/${deleteContext.id}`, { headers })
+                toast.success("Action deleted")
+            }
+
             fetchData()
+            setDeleteContext(null)
         } catch (error) {
             toast.error("Failed to delete")
-        }
-    }
-
-    const deleteAction = async (id: any) => {
-        if (!confirm("Delete this quick action?")) return
-
-        try {
-            const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            await api.delete(`/chat/quick-actions/${id}`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            })
-            toast.success("Action deleted")
-            fetchData()
-        } catch (error) {
-            toast.error("Failed to delete")
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -185,7 +185,7 @@ export default function BotConfigPage() {
                                     <Button size="sm" variant="outline" onClick={() => setEditingIntent(intent)}>
                                         Edit
                                     </Button>
-                                    <Button size="sm" variant="destructive" onClick={() => deleteIntent(intent._id)}>
+                                    <Button size="sm" variant="destructive" onClick={() => setDeleteContext({ type: 'intent', id: intent._id! })}>
                                         <Trash2 className="h-4 w-4" />
                                     </Button>
                                 </div>
@@ -231,7 +231,7 @@ export default function BotConfigPage() {
                                         <Button size="sm" variant="ghost" onClick={() => setEditingAction(action)}>
                                             Edit
                                         </Button>
-                                        <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => deleteAction(action._id)}>
+                                        <Button size="sm" variant="ghost" className="text-red-500 hover:text-red-600 hover:bg-red-50" onClick={() => setDeleteContext({ type: 'action', id: action._id! })}>
                                             <Trash2 className="h-4 w-4" />
                                         </Button>
                                     </div>
@@ -241,6 +241,15 @@ export default function BotConfigPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <DeleteConfirmDialog
+                open={!!deleteContext}
+                onOpenChange={(open) => !open && setDeleteContext(null)}
+                onConfirm={handleConfirmDelete}
+                isDeleting={isDeleting}
+                title={deleteContext?.type === 'intent' ? "Delete Intent" : "Delete Quick Action"}
+                description={`Are you sure you want to delete this ${deleteContext?.type}? This action cannot be undone.`}
+            />
         </div>
     )
 }

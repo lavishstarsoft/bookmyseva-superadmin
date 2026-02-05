@@ -54,10 +54,7 @@ export default function BlogEditorPage() {
     // Form State
     const [title, setTitle] = useState("")
     const [slug, setSlug] = useState("")
-    const [content, setContent] = useState<any>({
-        type: 'doc',
-        content: [{ type: 'paragraph' }]
-    })
+    const [content, setContent] = useState<string>("")
     const [excerpt, setExcerpt] = useState("")
     const [featuredImage, setFeaturedImage] = useState("")
     const [status, setStatus] = useState("draft")
@@ -85,16 +82,18 @@ export default function BlogEditorPage() {
     // Or better: Pass a `onStatsChange` prop to Editor? 
     // For MVP, allow me to parse the JSON content roughly.
 
-    const extractText = (node: any): string => {
-        if (typeof node === 'string') return node;
-        if (!node) return '';
-        if (Array.isArray(node)) return node.map(extractText).join(' ');
-        if (node.text) return node.text;
-        if (node.content) return extractText(node.content);
-        return '';
+    // Extract plain text from HTML content for word count
+    const extractText = (htmlContent: string): string => {
+        if (typeof htmlContent !== 'string') return '';
+        // Strip HTML tags to get plain text
+        const doc = new DOMParser().parseFromString(htmlContent, 'text/html');
+        return doc.body.textContent || '';
     }
 
-    const plainText = useMemo(() => extractText(content), [content]);
+    const plainText = useMemo(() => {
+        if (typeof window === 'undefined') return '';
+        return extractText(content);
+    }, [content]);
     const wordCount = plainText.trim().split(/\s+/).filter(w => w.length > 0).length;
 
     // SEO Calculation
@@ -143,7 +142,7 @@ export default function BlogEditorPage() {
 
                     setTitle(data.title)
                     setSlug(data.slug)
-                    setContent(data.content || {})
+                    setContent(data.content?.html || data.content || "")
                     setExcerpt(data.excerpt || "")
                     setFeaturedImage(data.image || "")
                     setStatus(data.status || "draft")
@@ -251,7 +250,7 @@ export default function BlogEditorPage() {
         const payload = {
             title,
             slug,
-            content,
+            content: { html: content }, // Wrap HTML in object for MongoDB
             excerpt,
             image: featuredImage,
             status,
@@ -324,7 +323,7 @@ export default function BlogEditorPage() {
 
                 {/* Left: Editor (Scrollable) */}
                 {/* Left: Editor (Scrollable) */}
-                <div className="w-[70%] overflow-y-auto space-y-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[#8D0303] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#700202] [&::-webkit-scrollbar-track]:bg-transparent">
+                <div className="w-full xl:w-[70%] overflow-y-auto space-y-6 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:bg-[#8D0303] [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-[#700202] [&::-webkit-scrollbar-track]:bg-transparent">
                     <div className="w-full space-y-6 p-6 md:p-8">
                         <div className="relative group">
                             <textarea
@@ -348,6 +347,7 @@ export default function BlogEditorPage() {
                         </div>
 
                         <RichTextEditor
+                            key={blogId}
                             content={content}
                             onChange={(json) => setContent(json)}
                         />

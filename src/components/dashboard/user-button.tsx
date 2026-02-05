@@ -32,8 +32,12 @@ export function UserButton() {
                 if (response.data.avatar) {
                     setAvatarUrl(response.data.avatar)
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error fetching user for header:", error)
+                if (error.response?.status === 401) {
+                    document.cookie = 'token=';
+                    window.location.href = '/login';
+                }
             }
         }
         fetchUser()

@@ -44,7 +44,7 @@ export const storageApi = {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await api.post<UploadResponse>('/upload-file', formData, {
+        const response = await api.post<UploadResponse>('/upload/file', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',
             },

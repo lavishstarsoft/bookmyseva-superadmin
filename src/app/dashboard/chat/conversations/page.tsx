@@ -274,10 +274,10 @@ export default function LiveConversationsPage() {
 
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
-            const res = await api.get(`/chat/sessions/${sessionId}/messages`, {
+            const res = await api.get(`/chat/history/${sessionId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             })
-            setMessages(res.data || [])
+            setMessages(res.data?.data || [])
         } catch (error) {
             console.error("Failed to fetch messages:", error)
         }
@@ -303,22 +303,29 @@ export default function LiveConversationsPage() {
         })
     }
 
-    const deleteSession = (sessionId: string, e: React.MouseEvent) => {
+    const deleteSession = async (sessionId: string, e: React.MouseEvent) => {
         e.stopPropagation(); // Prevent selecting the session when clicking delete
-        if (!socket || !confirm("Are you sure you want to delete this conversation?")) return;
+        if (!confirm("Are you sure you want to delete this conversation?")) return;
 
-        console.log("Emitting delete_session for:", sessionId);
+        console.log("Deleting session:", sessionId);
 
         // Optimistic UI update: Remove immediately
-        setSessions(prev => prev.filter(s => s.socketId !== sessionId));
+        setSessions(prev => prev.filter(s => s._id !== sessionId));
         if (selectedSession === sessionId) {
             setSelectedSession(null);
             setMessages([]);
         }
 
-        socket.emit("delete_session", {
-            sessionId
-        })
+        try {
+            const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
+            await api.delete(`/chat/sessions/${sessionId}`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            })
+        } catch (error) {
+            console.error("Failed to delete session:", error)
+            // Revert on failure (optional but good practice)
+            fetchSessions()
+        }
     }
 
     const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -424,7 +431,7 @@ export default function LiveConversationsPage() {
                                                         variant="ghost"
                                                         size="icon"
                                                         className="h-5 w-5 text-gray-400 hover:text-red-500 hover:bg-red-50"
-                                                        onClick={(e) => deleteSession(session.socketId, e)}
+                                                        onClick={(e) => deleteSession(session._id, e)}
                                                         title="Delete Conversation"
                                                     >
                                                         <Trash2 className="h-3 w-3" />

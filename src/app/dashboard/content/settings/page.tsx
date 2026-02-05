@@ -122,7 +122,7 @@ export default function GlobalSettingsPage() {
         formData.append("file", file)
 
         try {
-            const uploadResponse = await api.post("/upload-file", formData, {
+            const uploadResponse = await api.post("/upload/file", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             })
             const url = uploadResponse.data.url
@@ -156,7 +156,7 @@ export default function GlobalSettingsPage() {
             })
 
             // 2. Save App Config
-            await api.post("/app-config", {
+            await api.put("/app-config", {
                 androidLink: data.androidLink,
                 iosLink: data.iosLink,
                 androidQrImage: data.androidQrImage,

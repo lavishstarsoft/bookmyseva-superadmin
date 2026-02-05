@@ -1,12 +1,19 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from "axios";
 
 // API URL configuration - Updated for v1 API
+// API URL configuration - Updated for v1 API
 const getApiUrl = (): string => {
-    const envUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
-    // Remove trailing slash if present
-    const cleanUrl = envUrl.replace(/\/$/, "");
-    // Always use /api/v1 for versioned API
-    return `${cleanUrl}/api/v1`;
+    // Check for explicit environment variable first
+    if (process.env.NEXT_PUBLIC_API_URL) {
+        return `${process.env.NEXT_PUBLIC_API_URL.replace(/\/$/, "")}/api/v1`;
+    }
+
+    // Default based on environment
+    const baseUrl = process.env.NODE_ENV === 'production'
+        ? "http://46.225.29.165"
+        : "http://localhost:5001";
+
+    return `${baseUrl}/api/v1`;
 };
 
 // Helper to get token from cookie (consistent with middleware)
@@ -60,7 +67,7 @@ api.interceptors.response.use(
 
 // Export helper for getting base URL (for socket connections etc.)
 export const getBaseUrl = (): string => {
-    return process.env.NEXT_PUBLIC_API_URL || "http://localhost:5001";
+    return process.env.NEXT_PUBLIC_API_URL || (process.env.NODE_ENV === 'production' ? "http://46.225.29.165" : "http://localhost:5001");
 };
 
 export default api;

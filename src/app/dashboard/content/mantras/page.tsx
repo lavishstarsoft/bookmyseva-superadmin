@@ -1,5 +1,7 @@
 "use client";
 
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog";
+
 import { useState, useEffect } from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -51,6 +53,8 @@ export default function MantrasPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingItem, setEditingItem] = useState<MantraItem | null>(null);
+    const [deleteId, setDeleteId] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     const form = useForm<MantraValues>({
         resolver: zodResolver(mantraSchema) as any,
@@ -107,17 +111,21 @@ export default function MantrasPage() {
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm("Are you sure you want to delete this mantra?")) return;
+    const handleDelete = async () => {
+        if (!deleteId) return;
+        setIsDeleting(true);
         try {
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2];
-            await api.delete(`/mantras/${id}`, {
+            await api.delete(`/mantras/${deleteId}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
             toast.success("Mantra deleted");
             fetchItems();
+            setDeleteId(null);
         } catch (error) {
             toast.error("Failed to delete");
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -215,7 +223,7 @@ export default function MantrasPage() {
                                         <Button variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50" onClick={() => openEditDialog(item)}>
                                             <Pencil className="h-3.5 w-3.5" />
                                         </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={() => handleDelete(item._id)}>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50" onClick={() => setDeleteId(item._id)}>
                                             <Trash2 className="h-3.5 w-3.5" />
                                         </Button>
                                     </div>
@@ -318,6 +326,15 @@ export default function MantrasPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
+
+            <DeleteConfirmDialog
+                open={!!deleteId}
+                onOpenChange={(open) => !open && setDeleteId(null)}
+                onConfirm={handleDelete}
+                isDeleting={isDeleting}
+                title="Delete Mantra"
+                description="Are you sure you want to delete this mantra? This action cannot be undone."
+            />
         </div>
     );
 }

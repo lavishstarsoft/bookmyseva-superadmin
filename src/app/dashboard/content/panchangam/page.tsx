@@ -517,7 +517,7 @@ export default function PanchangamPage() {
                                                                     onChange={field.onChange}
                                                                     disabled={isSaving}
                                                                     className="h-full"
-                                                                    aspectRatio={16 / 9} // User App Aspect Ratio
+                                                                    aspectRatio={4 / 3} // Special Event Card Aspect Ratio
                                                                 />
                                                             </div>
                                                         </FormControl>

@@ -1,107 +1,168 @@
 "use client"
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
-interface RichTextEditorProps {
-    content: any // The new editor seems to deal with HTML strings mostly
-    onChange: (content: any) => void
-}
-
+// Declare the RichTextEditor type for TypeScript
 declare global {
     interface Window {
         RichTextEditor: any
+        RTE_DefaultConfig: any
     }
 }
 
-export default function RichTextEditor({ content, onChange }: RichTextEditorProps) {
-    const editorRef = useRef<HTMLDivElement>(null)
-    const rteInstance = useRef<any>(null)
+interface RichTextEditorProps {
+    content?: any
+    onChange?: (content: any) => void
+    height?: number
+}
 
+export default function RichTextEditor({
+    content,
+    onChange,
+    height = 400
+}: RichTextEditorProps) {
+    const editorRef = useRef<any>(null)
+    const containerRef = useRef<HTMLDivElement>(null)
+    const [scriptsLoaded, setScriptsLoaded] = useState(false)
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const onChangeRef = useRef(onChange)
+    const initAttempted = useRef(false)
+
+    // Keep onChange ref updated
     useEffect(() => {
-        // Ensure scripts are loaded and window.RichTextEditor is available
-        const initEditor = () => {
-            if (window.RichTextEditor && editorRef.current && !rteInstance.current) {
-                // Initialize the editor
-                rteInstance.current = new window.RichTextEditor(editorRef.current);
+        onChangeRef.current = onChange
+    }, [onChange])
 
-                // Set initial content
-                // Note: content prop might be JSON from Tiptap history, needing conversion
-                // But for new or html content:
-                // If content is object (tiptap), we might need to rely on the parent converting valid HTML first
-                // For now assuming we pass HTML string or handling it safely
+    // Load scripts in order and inject CSS
+    useEffect(() => {
+        // Inject CSS
+        const cssId = 'rte-theme-css'
+        if (!document.getElementById(cssId)) {
+            const link = document.createElement('link')
+            link.id = cssId
+            link.rel = 'stylesheet'
+            link.href = '/richtexteditor/rte_theme_default.css'
+            document.head.appendChild(link)
+        }
 
-                let initialHtml = "";
-                if (typeof content === 'string') {
-                    initialHtml = content;
-                } else if (content && content.type === 'doc') {
-                    // Fallback for Tiptap JSON - this won't render correctly without a converter
-                    // We'll warn or just set empty if strict migration needed
-                    console.warn("Received Tiptap JSON, but new editor expects HTML.");
-                    initialHtml = "<p>Content migration required.</p>";
+        // Check if already loaded
+        if (window.RichTextEditor) {
+            setScriptsLoaded(true)
+            return
+        }
+
+        // Load main rte.js first
+        const rteScript = document.createElement('script')
+        rteScript.src = '/richtexteditor/rte.js'
+        rteScript.async = false
+
+        rteScript.onload = () => {
+            // After main script loads, load plugins
+            const pluginsScript = document.createElement('script')
+            pluginsScript.src = '/richtexteditor/plugins/all_plugins.js'
+            pluginsScript.async = false
+
+            pluginsScript.onload = () => {
+                setTimeout(() => {
+                    setScriptsLoaded(true)
+                }, 100)
+            }
+
+            document.body.appendChild(pluginsScript)
+        }
+
+        document.body.appendChild(rteScript)
+    }, [])
+
+    // Initialize editor when scripts are loaded
+    useEffect(() => {
+        if (!scriptsLoaded || !containerRef.current || initAttempted.current) {
+            return
+        }
+
+        if (!window.RichTextEditor) {
+            console.log('RichTextEditor not available yet')
+            return
+        }
+
+        initAttempted.current = true
+
+        try {
+            const uploadImage = async (file: File, callback: (url: string) => void) => {
+                try {
+                    const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
+                    if (!token) {
+                        console.error("No token found")
+                        return
+                    }
+
+                    const formData = new FormData()
+                    formData.append('image', file)
+
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5001'}/api/v1/upload`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: formData
+                    })
+
+                    if (!response.ok) {
+                        throw new Error('Upload failed')
+                    }
+
+                    const data = await response.json()
+                    callback(data.url)
+                } catch (error) {
+                    console.error("Image upload failed:", error)
+                    // Fallback to base64 or show error? 
+                    // Most editors expect the callback to be called with a URL, or nothing if failed.
                 }
+            }
 
-                rteInstance.current.setHTMLCode(initialHtml);
+            editorRef.current = new window.RichTextEditor(containerRef.current, {
+                file_upload_handler: uploadImage
+            });
+            (window as any)._editor = editorRef.current;
 
-                // Attach Change Listener
-                // We need to poll or hook into specific events if the library supports them.
-                // Based on standard simple JS editors, they might not have 'on' events easily exposed.
-                // Assuming we might need to bind input/blur events on the inner content editable
-                // OR checking docs (which we don't have deeply).
-                // Let's attach a mutation observer or simple interval check for changes if event listener isn't obvious
-                // But typically:
-                if (rteInstance.current.attachEvent) {
-                    rteInstance.current.attachEvent("change", function () {
-                        onChange(rteInstance.current.getHTMLCode());
-                    });
-                } else {
-                    // Fallback polling or event binding on container
-                    // Inspecting the library implementation would be ideal, but let's try binding to the container
-                    const editorBody = editorRef.current.querySelector('.rte-content'); // Hypothesized class
-                    if (editorBody) {
-                        editorBody.addEventListener('input', () => {
-                            onChange(rteInstance.current.getHTMLCode());
-                        })
+            // Set initial content
+            if (content && typeof content === 'string' && content.length > 0) {
+                editorRef.current.setHTMLCode(content)
+            }
+
+            // Setup change listener
+            const checkForChanges = () => {
+                if (editorRef.current && onChangeRef.current) {
+                    try {
+                        const html = editorRef.current.getHTMLCode()
+                        onChangeRef.current(html)
+                    } catch (e) {
+                        // Ignore
                     }
                 }
             }
+
+            intervalRef.current = setInterval(checkForChanges, 1000)
+            console.log('RichTextEditor initialized successfully')
+        } catch (error) {
+            console.error('Error initializing RichTextEditor:', error)
+            initAttempted.current = false // Allow retry
         }
 
-        // Retry initialization if scripts load async
-        if (!window.RichTextEditor) {
-            const interval = setInterval(() => {
-                if (window.RichTextEditor) {
-                    clearInterval(interval);
-                    initEditor();
-                }
-            }, 100);
-            return () => clearInterval(interval);
-        } else {
-            initEditor();
-        }
-
-        // Cleanup
         return () => {
-            // Check if destroy method exists
-            if (rteInstance.current && rteInstance.current.destroy) {
-                // rteInstance.current.destroy();
-            }
-            rteInstance.current = null;
-        }
-    }, [])
-
-    // Update content if changed externally (be careful of loops)
-    useEffect(() => {
-        if (rteInstance.current && content && typeof content === 'string') {
-            const currentVal = rteInstance.current.getHTMLCode();
-            if (currentVal !== content) {
-                rteInstance.current.setHTMLCode(content);
+            if (intervalRef.current) {
+                clearInterval(intervalRef.current)
+                intervalRef.current = null
             }
         }
-    }, [content])
+    }, [scriptsLoaded])
 
     return (
         <div className="w-full">
-            <div ref={editorRef} className="rte-container"></div>
+            <div
+                ref={containerRef}
+                style={{ height: `${height}px`, minHeight: '300px' }}
+            />
         </div>
     )
 }

@@ -99,7 +99,7 @@ export default function FestivalSettingsPage() {
 
     const fetchFestivalData = async () => {
         try {
-            const response = await api.get(`/content/festival`)
+            const response = await api.get(`/content/upcoming-festival`)
             if (response.data && response.data.content) {
                 const data = response.data.content
                 form.reset({
@@ -347,12 +347,30 @@ export default function FestivalSettingsPage() {
                                     <div className="space-y-4">
                                         {fields.map((field, index) => (
                                             <div key={field.id} className="grid gap-4 p-4 border rounded-lg bg-slate-50 relative group">
-                                                <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+                                                <div className="absolute right-2 top-2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 z-10">
+                                                    {/* Required Switch */}
+                                                    <FormField
+                                                        control={form.control as any}
+                                                        name={`formFields.${index}.required`}
+                                                        render={({ field }) => (
+                                                            <FormItem className="flex flex-row items-center space-x-2 space-y-0 bg-white/80 backdrop-blur-sm px-2 py-1.5 rounded-md border border-input shadow-sm">
+                                                                <FormControl>
+                                                                    <Switch
+                                                                        checked={field.value}
+                                                                        onCheckedChange={field.onChange}
+                                                                        className="scale-75"
+                                                                    />
+                                                                </FormControl>
+                                                                <FormLabel className="text-xs font-medium cursor-pointer">Required</FormLabel>
+                                                            </FormItem>
+                                                        )}
+                                                    />
+
                                                     <Button
                                                         type="button"
                                                         variant="destructive"
                                                         size="icon"
-                                                        className="h-8 w-8"
+                                                        className="h-8 w-8 shadow-sm"
                                                         onClick={() => remove(index)}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
@@ -409,80 +427,41 @@ export default function FestivalSettingsPage() {
                                                             )}
                                                         />
 
-                                                        {/* Options (Conditional) */}
+                                                        {/* Options */}
                                                         <FormField
                                                             control={form.control as any}
                                                             name={`formFields.${index}.options`}
                                                             render={({ field }) => (
-                                                                <FormItem className="md:col-span-2">
+                                                                <FormItem>
                                                                     <FormLabel className="text-xs">Options (comma separated)</FormLabel>
                                                                     <FormControl>
-                                                                        <Input placeholder="Option 1, Option 2, Option 3" {...field} className="border-[#8D0303] border-dotted border-2 bg-white/50" />
+                                                                        <Input placeholder="Opt 1, Opt 2" {...field} className="border-[#8D0303] border-dotted border-2 bg-white/50" />
                                                                     </FormControl>
-                                                                    <FormDescription className="text-[10px]">
-                                                                        Required for Select, Radio, and Checkbox types.
+                                                                    <FormDescription className="text-[10px] truncate">
+                                                                        For Select, Radio, Checkbox.
                                                                     </FormDescription>
                                                                     <FormMessage />
                                                                 </FormItem>
                                                             )}
                                                         />
 
-                                                        <div className="flex items-center gap-4 md:col-span-2">
-                                                            {/* Width Selector */}
-                                                            <FormField
-                                                                control={form.control as any}
-                                                                name={`formFields.${index}.width`}
-                                                                render={({ field }) => (
-                                                                    <FormItem className="w-1/3">
-                                                                        <FormLabel className="text-xs">Width</FormLabel>
-                                                                        <Select onValueChange={field.onChange} defaultValue={field.value || "full"}>
-                                                                            <FormControl>
-                                                                                <SelectTrigger className="h-9 border-[#8D0303] border-dotted border-2 bg-white/50 text-[10px] px-2">
-                                                                                    <SelectValue placeholder="Width" />
-                                                                                </SelectTrigger>
-                                                                            </FormControl>
-                                                                            <SelectContent>
-                                                                                <SelectItem value="full">Full Width</SelectItem>
-                                                                                <SelectItem value="half">1/2 Width</SelectItem>
-                                                                                <SelectItem value="third">1/3 Width</SelectItem>
-                                                                            </SelectContent>
-                                                                        </Select>
-                                                                        <FormMessage />
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-
-                                                            {/* Required Switch */}
-                                                            <FormField
-                                                                control={form.control as any}
-                                                                name={`formFields.${index}.required`}
-                                                                render={({ field }) => (
-                                                                    <FormItem className="flex flex-row items-center space-x-2 space-y-0 pt-6">
-                                                                        <FormControl>
-                                                                            <Switch
-                                                                                checked={field.value}
-                                                                                onCheckedChange={field.onChange}
-                                                                            />
-                                                                        </FormControl>
-                                                                        <FormLabel className="text-sm font-normal">Required</FormLabel>
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                            {/* Placeholder */}
-                                                            <FormField
-                                                                control={form.control as any}
-                                                                name={`formFields.${index}.placeholder`}
-                                                                render={({ field }) => (
-                                                                    <FormItem className="flex-1">
-                                                                        <FormLabel className="text-xs">Placeholder</FormLabel>
-                                                                        <FormControl>
-                                                                            <Input placeholder="Placeholder..." className="h-9 text-xs border-[#8D0303] border-dotted border-2 bg-white/50" {...field} />
-                                                                        </FormControl>
-                                                                        <FormMessage />
-                                                                    </FormItem>
-                                                                )}
-                                                            />
-                                                        </div>
+                                                        {/* Placeholder */}
+                                                        <FormField
+                                                            control={form.control as any}
+                                                            name={`formFields.${index}.placeholder`}
+                                                            render={({ field }) => (
+                                                                <FormItem>
+                                                                    <FormLabel className="text-xs">Placeholder</FormLabel>
+                                                                    <FormControl>
+                                                                        <Input placeholder="Placeholder..." className="h-10 border-[#8D0303] border-dotted border-2 bg-white/50" {...field} />
+                                                                    </FormControl>
+                                                                    <FormDescription className="text-[10px] truncate">
+                                                                        Text shown inside the input.
+                                                                    </FormDescription>
+                                                                    <FormMessage />
+                                                                </FormItem>
+                                                            )}
+                                                        />
                                                     </div>
                                                 </div>
                                             </div>

@@ -1,5 +1,7 @@
 "use client"
 
+import { DeleteConfirmDialog } from "@/components/DeleteConfirmDialog"
+
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -34,6 +36,8 @@ export default function BlogsPage() {
     const [blogs, setBlogs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const [deleteId, setDeleteId] = useState<string | null>(null)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     useEffect(() => {
         fetchBlogs()
@@ -53,18 +57,21 @@ export default function BlogsPage() {
         }
     }
 
-    const handleDelete = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation() // Prevent row click
-        if (!confirm("Are you sure you want to delete this blog post?")) return
+    const handleDelete = async () => {
+        if (!deleteId) return
 
         try {
+            setIsDeleting(true)
             const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
             const headers = { 'Authorization': `Bearer ${token}` }
-            await api.delete(`/blogs/${id}`, { headers })
-            setBlogs(blogs.filter(blog => blog._id !== id))
+            await api.delete(`/blogs/${deleteId}`, { headers })
+            setBlogs(blogs.filter(blog => blog._id !== deleteId))
             toast.success("Blog deleted successfully")
+            setDeleteId(null)
         } catch (error) {
             toast.error("Failed to delete blog")
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -204,7 +211,7 @@ export default function BlogsPage() {
                                                             <Eye className="mr-2 h-4 w-4" /> Preview
                                                         </DropdownMenuItem>
                                                         <DropdownMenuSeparator />
-                                                        <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={(e) => handleDelete(blog._id, e)}>
+                                                        <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={(e) => { e.stopPropagation(); setDeleteId(blog._id); }}>
                                                             <Trash2 className="mr-2 h-4 w-4" /> Delete
                                                         </DropdownMenuItem>
                                                     </DropdownMenuContent>
@@ -218,6 +225,14 @@ export default function BlogsPage() {
                     </div>
                 </CardContent>
             </Card>
+            <DeleteConfirmDialog
+                open={!!deleteId}
+                onOpenChange={(open) => !open && setDeleteId(null)}
+                onConfirm={handleDelete}
+                isDeleting={isDeleting}
+                title="Delete Blog Post"
+                description="Are you sure you want to delete this blog post? This action cannot be undone."
+            />
         </div>
     )
 }

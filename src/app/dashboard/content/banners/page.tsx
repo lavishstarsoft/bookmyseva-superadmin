@@ -26,12 +26,14 @@ import { ImageCropper } from "@/components/ui/image-cropper"
 // Schema
 const bannerSchema = z.object({
     id: z.number(),
-    badge: z.string().min(1, "Badge is required"),
-    title: z.string().min(1, "Title is required"),
+    badge: z.string().optional(),
+    title: z.string().optional(),
     subtitle: z.string().optional(),
     description: z.string().optional(),
     primaryCTA: z.string().optional(), // Exploring Poojas
+    primaryLink: z.string().optional(), // Link for Primary Button
     secondaryCTA: z.string().optional(), // Live Darshan
+    secondaryLink: z.string().optional(), // Link for Secondary Button
     desktopImage: z.string().min(1, "Desktop Image is required"),
     mobileImage: z.string().min(1, "Mobile Image is required"),
 })
@@ -177,7 +179,9 @@ export default function BannersPage() {
                         subtitle: "Subtitle here",
                         description: "Description goes here",
                         primaryCTA: "Explore",
+                        primaryLink: "/",
                         secondaryCTA: "Learn More",
+                        secondaryLink: "/",
                         desktopImage: "",
                         mobileImage: ""
                     })}
@@ -206,7 +210,9 @@ export default function BannersPage() {
                                     subtitle: "To BookMySeva",
                                     description: "Start your spiritual journey today.",
                                     primaryCTA: "Explore Poojas",
+                                    primaryLink: "/poojas",
                                     secondaryCTA: "View Temples",
+                                    secondaryLink: "/temples",
                                     desktopImage: "",
                                     mobileImage: ""
                                 })}
@@ -218,7 +224,7 @@ export default function BannersPage() {
                     ) : (
                         <div className="space-y-6">
                             {fields.map((field, index) => (
-                                <Card key={field.id} className="relative group hover:border-[#FEB703]/50 transition-all duration-300">
+                                <Card key={field.id} className="border shadow-md bg-card relative group hover:border-[#FEB703]/50 transition-all duration-300">
                                     <div className="absolute right-4 top-4 flex items-center gap-2 opacity-100 md:opacity-0 group-hover:opacity-100 transition-opacity z-10">
                                         <Button
                                             type="button"
@@ -259,7 +265,7 @@ export default function BannersPage() {
                                                 name={`banners.${index}.badge`}
                                                 render={({ field }) => (
                                                     <FormItem>
-                                                        <FormLabel>Badge (Small Tag)</FormLabel>
+                                                        <FormLabel>Badge</FormLabel>
                                                         <FormControl>
                                                             <Input placeholder="e.g. 🙏 Welcome" {...field} />
                                                         </FormControl>
@@ -300,7 +306,7 @@ export default function BannersPage() {
                                                     <FormItem>
                                                         <FormLabel>Description</FormLabel>
                                                         <FormControl>
-                                                            <Textarea placeholder="Short description..." className="h-10 min-h-[40px] resize-none" {...field} />
+                                                            <Textarea placeholder="Short description..." className="resize-none min-h-[40px]" {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -308,7 +314,7 @@ export default function BannersPage() {
                                             />
                                         </div>
 
-                                        <div className="grid md:grid-cols-2 gap-4">
+                                        <div className="grid md:grid-cols-4 gap-4">
                                             <FormField
                                                 control={form.control}
                                                 name={`banners.${index}.primaryCTA`}
@@ -317,6 +323,19 @@ export default function BannersPage() {
                                                         <FormLabel>Primary Button</FormLabel>
                                                         <FormControl>
                                                             <Input placeholder="Button Text" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.primaryLink`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Primary Link</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="/url-path" {...field} />
                                                         </FormControl>
                                                         <FormMessage />
                                                     </FormItem>
@@ -335,6 +354,20 @@ export default function BannersPage() {
                                                     </FormItem>
                                                 )}
                                             />
+                                            <FormField
+                                                control={form.control}
+                                                name={`banners.${index}.secondaryLink`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Secondary Link</FormLabel>
+                                                        <FormControl>
+                                                            <Input placeholder="/url-path" {...field} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
                                         </div>
 
                                         <Separator />
