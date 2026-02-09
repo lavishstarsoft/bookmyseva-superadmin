@@ -111,6 +111,11 @@ const routes = [
                 icon: FileText
             },
             {
+                label: "About Us Content",
+                href: "/dashboard/content/about",
+                icon: FileText
+            },
+            {
                 label: "Blog Categories",
                 href: "/dashboard/content/categories",
                 icon: Tag
