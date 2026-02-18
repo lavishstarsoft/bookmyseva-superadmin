@@ -61,9 +61,12 @@ export function LiveFormPreview() {
                                             <SelectValue placeholder={field.placeholder || "Select option"} />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            {field.options?.split(',').map((opt: string) => (
-                                                <SelectItem key={opt} value={opt}>{opt}</SelectItem>
-                                            ))}
+                                            {field.options?.split(',')
+                                                .map((opt: string) => opt.trim())
+                                                .filter((opt: string) => opt !== "")
+                                                .map((opt: string) => (
+                                                    <SelectItem key={opt} value={opt}>{opt}</SelectItem>
+                                                ))}
                                         </SelectContent>
                                     </Select>
                                 ) : field.type === 'radio' ? (
