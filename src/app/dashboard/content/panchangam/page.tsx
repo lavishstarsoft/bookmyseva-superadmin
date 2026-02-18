@@ -36,6 +36,8 @@ import { ImageUpload } from "@/components/ui/image-upload";
 // Schema
 const panchangamSchema = z.object({
     tithi: z.string().min(1, "Tithi is required"),
+    samvatsaram: z.string().min(1, "Samvatsaram is required"),
+    maasam: z.string().min(1, "Maasam is required"),
     nakshatra: z.string().min(1, "Nakshatra is required"),
     yoga: z.string().optional(),
     karana: z.string().optional(),
@@ -77,6 +79,8 @@ export default function PanchangamPage() {
         resolver: zodResolver(panchangamSchema),
         defaultValues: {
             tithi: "",
+            samvatsaram: "",
+            maasam: "",
             nakshatra: "",
             yoga: "",
             karana: "",
@@ -114,6 +118,8 @@ export default function PanchangamPage() {
                 // Populate form
                 form.reset({
                     tithi: response.data.tithi,
+                    samvatsaram: response.data.samvatsaram || "",
+                    maasam: response.data.maasam || "",
                     nakshatra: response.data.nakshatra,
                     yoga: response.data.yoga,
                     karana: response.data.karana,
@@ -139,6 +145,8 @@ export default function PanchangamPage() {
                 // Clear form if no data
                 form.reset({
                     tithi: "",
+                    samvatsaram: "",
+                    maasam: "",
                     nakshatra: "",
                     yoga: "",
                     karana: "",
@@ -242,6 +250,32 @@ export default function PanchangamPage() {
                                     </div>
                                 </CardHeader>
                                 <CardContent className="space-y-4 pt-6">
+                                    <FormField
+                                        control={form.control}
+                                        name="samvatsaram"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Samvatsaram</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="e.g. Shri Vishvavasu" {...field} className="border-orange-200 focus-visible:ring-[#8D0303]" />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="maasam"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Maasam</FormLabel>
+                                                <FormControl>
+                                                    <Input placeholder="e.g. Magha Maasam" {...field} className="border-orange-200 focus-visible:ring-[#8D0303]" />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
                                     <FormField
                                         control={form.control}
                                         name="tithi"
