@@ -243,6 +243,12 @@ export default function BlogEditorPage() {
             return
         }
 
+        // Validate Word Count (Minimum 180 words)
+        if (wordCount < 180) {
+            toast.error(`Blog post must have at least 180 words. Current: ${wordCount} words.`)
+            return
+        }
+
         setIsSaving(true)
         const token = document.cookie.match(new RegExp('(^| )token=([^;]+)'))?.[2]
         const headers = { 'Authorization': `Bearer ${token}` }
@@ -330,20 +336,28 @@ export default function BlogEditorPage() {
                                 placeholder="Post Title"
                                 className="w-full text-5xl font-extrabold bg-transparent border-none outline-none resize-none overflow-hidden placeholder:text-muted-foreground/30 leading-tight"
                                 value={title}
+                                maxLength={100}
                                 onChange={(e) => {
                                     const newTitle = e.target.value;
-                                    setTitle(newTitle);
-                                    // Auto-generate slug if it's a new post or slug is empty/matches old title
-                                    if (isNew) {
-                                        setSlug(newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''));
+                                    if (newTitle.length <= 100) {
+                                        setTitle(newTitle);
+                                        // Auto-generate slug if it's a new post or slug is empty/matches old title
+                                        if (isNew) {
+                                            setSlug(newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''));
+                                        }
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = e.target.scrollHeight + 'px';
                                     }
-                                    e.target.style.height = 'auto';
-                                    e.target.style.height = e.target.scrollHeight + 'px';
                                 }}
                                 rows={1}
                                 style={{ fieldSizing: "content" } as any}
                             />
-                            <div className="absolute bottom-0 left-0 h-1 w-20 bg-primary/50 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity" />
+                            <div className="flex justify-between items-center mt-2">
+                                <div className="h-1 w-20 bg-primary/50 rounded-full opacity-0 group-focus-within:opacity-100 transition-opacity" />
+                                <span className={`text-xs font-medium transition-colors ${title.length >= 90 ? 'text-red-500' : 'text-muted-foreground/50'}`}>
+                                    {title.length} / 100
+                                </span>
+                            </div>
                         </div>
 
                         <RichTextEditor
