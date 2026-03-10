@@ -323,7 +323,7 @@ export default function EditKitPage() {
 
                 {/* Right Column - Pricing & Image */}
                 <div className="space-y-6">
-                    <Card>
+                    {category === "daily" && <Card>
                         <CardHeader>
                             <CardTitle>Pricing Plans</CardTitle>
                             <CardDescription>Add pricing plans for this kit. You can add as many plans as needed (e.g., Weekly, Monthly, Quarterly, Yearly, Offer, etc.)</CardDescription>
@@ -456,7 +456,7 @@ export default function EditKitPage() {
                                 </p>
                             )}
                         </CardContent>
-                    </Card>
+                    </Card>}
 
                     {/* Optional Market/Offer Price */}
                     <Card>
