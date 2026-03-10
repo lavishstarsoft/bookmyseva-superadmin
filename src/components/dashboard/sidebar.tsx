@@ -48,8 +48,20 @@ const routes = [
     {
         label: "Products & Pooja",
         icon: ShoppingBag,
-        href: "/dashboard/products",
+        href: "#",
         color: "text-orange-700",
+        submenu: [
+            {
+                label: "All Products",
+                href: "/dashboard/products",
+                icon: Store
+            },
+            {
+                label: "Pooja Kits",
+                href: "/dashboard/kits",
+                icon: ShoppingBag
+            }
+        ]
     },
     {
         label: "Vendors",

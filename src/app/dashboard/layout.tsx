@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Header } from "@/components/dashboard/header";
 import { Sidebar, MobileSidebar } from "@/components/dashboard/sidebar";
 import { SidebarProvider, useSidebar } from "@/components/dashboard/sidebar-context";
+import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
 export default function DashboardLayout({
@@ -41,6 +42,7 @@ function DashboardLayoutContent({ children }: { children: React.ReactNode }) {
                 <div className="p-4 md:p-6 lg:p-8">
                     {children}
                 </div>
+                <Toaster />
             </main>
         </div>
     );
