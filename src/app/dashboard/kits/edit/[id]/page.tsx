@@ -24,6 +24,7 @@ import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
 import { kitsApi, Kit, PricingPlan, KitItem } from "@/api/kits";
 import { toast } from "sonner";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 // Suggested plan templates for quick add
 const PLAN_SUGGESTIONS = [
@@ -181,7 +182,7 @@ export default function EditKitPage() {
                 shortDescription,
                 category,
                 itemsIncluded: items,
-                image: image || "https://images.unsplash.com/photo-1601314002592-b8734bca6604?q=80&w=400&auto=format&fit=crop"
+                image: image
             };
 
             // Always save pricing plans
@@ -504,11 +505,12 @@ export default function EditKitPage() {
                             <CardTitle>Kit Image</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="aspect-square rounded-xl border-2 border-dashed flex flex-col items-center justify-center text-muted-foreground hover:bg-muted/50 transition-colors cursor-pointer p-4 text-center">
-                                <Upload className="w-8 h-8 mb-2" />
-                                <p className="text-sm font-medium">Click to upload or drag and drop</p>
-                                <p className="text-[10px]">PNG, JPG up to 5MB</p>
-                            </div>
+                            <ImageUpload
+                                value={image}
+                                onChange={setImage}
+                                aspectRatio={1}
+                                className="aspect-square w-full"
+                            />
                         </CardContent>
                     </Card>
                 </div>

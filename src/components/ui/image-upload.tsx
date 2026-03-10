@@ -138,6 +138,7 @@ export const ImageUpload = ({
                             alt="Upload"
                             src={value}
                             className="w-full h-full"
+                            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         />
                     </>
                 ) : (

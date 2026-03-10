@@ -31,23 +31,23 @@ export interface Kit {
 
 export const kitsApi = {
     getAll: async () => {
-        const response = await api.get<Kit[]>("/kits");
+        const response = await api.get<Kit[]>("kits");
         return response.data;
     },
     getById: async (id: string) => {
-        const response = await api.get<Kit>(`/kits/${id}`);
+        const response = await api.get<Kit>(`kits/${id}`);
         return response.data;
     },
     create: async (data: Kit) => {
-        const response = await api.post<Kit>("/kits", data);
+        const response = await api.post<Kit>("kits", data);
         return response.data;
     },
     update: async (id: string, data: Partial<Kit>) => {
-        const response = await api.put<Kit>(`/kits/${id}`, data);
+        const response = await api.put<Kit>(`kits/${id}`, data);
         return response.data;
     },
     delete: async (id: string) => {
-        const response = await api.delete(`/kits/${id}`);
+        const response = await api.delete(`kits/${id}`);
         return response.data;
     }
 };
