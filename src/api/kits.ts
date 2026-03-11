@@ -13,18 +13,29 @@ export interface KitItem {
     text: string;
 }
 
+export interface KitBadges {
+    verifiedQuality: boolean;
+    freeDelivery: boolean;
+    premiumQuality: boolean;
+    doorstepDelivery: boolean;
+    panditCurated: boolean;
+    easyCancel: boolean;
+}
+
 export interface Kit {
     _id?: string;
     title: string;
     shortDescription: string;
     category: string;
     image?: string;
+    images?: string[];
     defaultRating?: number;
     reviewCount?: number;
     itemsIncluded: KitItem[];
     pricingPlans?: PricingPlan[];
     marketPrice?: number | string;
     offerPrice?: number | string;
+    badges?: KitBadges;
     createdAt?: string;
     updatedAt?: string;
 }
