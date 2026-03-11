@@ -20,10 +20,17 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import Link from "next/link";
-import { kitsApi, Kit, KitBadges } from "@/api/kits";
+import { kitsApi, Kit, KitBadges, KitShipping, KitDeliveryConfig } from "@/api/kits";
 import { toast } from "sonner";
 import { MultiImageUpload } from "@/components/ui/image-upload";
-import { ShieldCheck, Truck, Star, Package, UserCheck, RefreshCw } from "lucide-react";
+import { ShieldCheck, Truck, Star, Package, UserCheck, RefreshCw, Clock, CalendarDays } from "lucide-react";
+
+const SLOT_SUGGESTIONS = [
+    { id: "morning", label: "8 AM – 11 AM" },
+    { id: "midday", label: "11 AM – 2 PM" },
+    { id: "afternoon", label: "2 PM – 5 PM" },
+    { id: "evening", label: "5 PM – 8 PM" },
+];
 
 // Suggested plan templates for quick add
 const PLAN_SUGGESTIONS = [
@@ -77,6 +84,61 @@ export default function AddKitPage() {
 
     const toggleBadge = (key: keyof KitBadges) => {
         setBadges(prev => ({ ...prev, [key]: !prev[key] }));
+    };
+
+    // Shipping & Delivery
+    const [shipping, setShipping] = useState<KitShipping>({
+        freeShipping: true,
+        shippingLabel: 'Free Shipping',
+        deliveryText: 'Delivery in 2-3 days',
+        showShipping: true,
+    });
+
+    const updateShipping = (key: keyof KitShipping, value: string | boolean) => {
+        setShipping(prev => ({ ...prev, [key]: value }));
+    };
+
+    // Delivery Schedule
+    const [deliveryConfig, setDeliveryConfig] = useState<KitDeliveryConfig>({
+        timeSlots: [
+            { id: 'morning', label: '8 AM – 11 AM', active: true },
+            { id: 'midday', label: '11 AM – 2 PM', active: true },
+            { id: 'afternoon', label: '2 PM – 5 PM', active: true },
+        ],
+        leadDays: 0,
+        maxAdvanceDays: 30,
+    });
+
+    const addTimeSlot = (id: string, label: string) => {
+        if (deliveryConfig.timeSlots.some(s => s.label === label)) {
+            toast.error(`"${label}" slot already exists`);
+            return;
+        }
+        setDeliveryConfig(prev => ({
+            ...prev,
+            timeSlots: [...prev.timeSlots, { id: id + '-' + Date.now(), label, active: true }]
+        }));
+    };
+
+    const removeTimeSlot = (id: string) => {
+        setDeliveryConfig(prev => ({
+            ...prev,
+            timeSlots: prev.timeSlots.filter(s => s.id !== id)
+        }));
+    };
+
+    const toggleTimeSlot = (id: string) => {
+        setDeliveryConfig(prev => ({
+            ...prev,
+            timeSlots: prev.timeSlots.map(s => s.id === id ? { ...s, active: !s.active } : s)
+        }));
+    };
+
+    const updateSlotLabel = (id: string, label: string) => {
+        setDeliveryConfig(prev => ({
+            ...prev,
+            timeSlots: prev.timeSlots.map(s => s.id === id ? { ...s, label } : s)
+        }));
     };
 
     const handleAddItem = () => {
@@ -195,6 +257,12 @@ export default function AddKitPage() {
 
             // Save trust badges
             kitData.badges = badges;
+
+            // Save shipping info
+            kitData.shipping = shipping;
+
+            // Save delivery config
+            kitData.deliveryConfig = deliveryConfig;
 
             await kitsApi.create(kitData);
             toast.success("Kit created successfully!");
@@ -354,6 +422,160 @@ export default function AddKitPage() {
                                 <div className="mt-4 flex items-start gap-2 text-[11px] text-amber-700 font-medium">
                                     <ImagePlus className="w-3.5 h-3.5 mt-0.5" />
                                     <p>First image will be the primary cover photo. Recommended size: 1000x1000px.</p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Delivery Schedule */}
+                    <Card className="border-border shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                        <CardHeader className="bg-linear-to-r from-purple-500 to-purple-600 py-4 px-6 text-white">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center text-sm font-bold shrink-0">
+                                    <Clock className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-base leading-tight">Delivery Schedule</h3>
+                                    <p className="text-white/80 text-[11px] font-medium uppercase tracking-wider">Time slots & booking dates</p>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-5">
+                            {/* Time Slots */}
+                            <div>
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 block">Quick Add Slots</label>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {SLOT_SUGGESTIONS.map(slot => (
+                                        <button
+                                            key={slot.id}
+                                            type="button"
+                                            onClick={() => addTimeSlot(slot.id, slot.label)}
+                                            className="text-[11px] font-semibold px-2.5 py-1 rounded-full border border-border hover:border-purple-400 hover:bg-purple-50 hover:text-purple-700 transition-all cursor-pointer"
+                                        >
+                                            + {slot.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Added Slots */}
+                            {deliveryConfig.timeSlots.length > 0 && (
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Active Slots</label>
+                                    {deliveryConfig.timeSlots.map((slot) => (
+                                        <div
+                                            key={slot.id}
+                                            className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all ${slot.active
+                                                ? 'border-l-[3px] border-l-purple-500 border-purple-200 bg-purple-50/50'
+                                                : 'border-border bg-muted/20 opacity-50'
+                                                }`}
+                                        >
+                                            <Switch
+                                                checked={slot.active}
+                                                onCheckedChange={() => toggleTimeSlot(slot.id)}
+                                                className="data-[state=checked]:bg-purple-600 shrink-0 scale-90"
+                                            />
+                                            <Input
+                                                value={slot.label}
+                                                onChange={(e) => updateSlotLabel(slot.id, e.target.value)}
+                                                className="h-7 text-sm font-medium border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1"
+                                                placeholder="Slot label"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeTimeSlot(slot.id)}
+                                                className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded p-1 transition-colors shrink-0"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Custom Slot Entry */}
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="Custom slot (e.g., 6 AM – 9 AM)"
+                                    id="newSlotLabel"
+                                    className="h-9 flex-1"
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const input = e.target as HTMLInputElement;
+                                            if (input.value.trim()) {
+                                                addTimeSlot('custom-' + Date.now(), input.value.trim());
+                                                input.value = '';
+                                            }
+                                        }
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    className="h-9 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-md text-sm font-semibold flex items-center gap-1 transition-colors shrink-0"
+                                    onClick={() => {
+                                        const input = document.getElementById('newSlotLabel') as HTMLInputElement;
+                                        if (input?.value.trim()) {
+                                            addTimeSlot('custom-' + Date.now(), input.value.trim());
+                                            input.value = '';
+                                        }
+                                    }}
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Add
+                                </button>
+                            </div>
+
+                            <hr className="border-border" />
+
+                            {/* Booking Date Config */}
+                            <div>
+                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5 block">
+                                    <CalendarDays className="w-3.5 h-3.5" /> Booking Date Control
+                                </label>
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">Start Date</label>
+                                            <Input
+                                                type="date"
+                                                value={deliveryConfig.bookingStartDate || ''}
+                                                onChange={(e) => setDeliveryConfig(prev => ({ ...prev, bookingStartDate: e.target.value || undefined }))}
+                                                className="h-9"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">End Date <span className="text-[10px] text-muted-foreground/60">(optional)</span></label>
+                                            <Input
+                                                type="date"
+                                                value={deliveryConfig.bookingEndDate || ''}
+                                                onChange={(e) => setDeliveryConfig(prev => ({ ...prev, bookingEndDate: e.target.value || undefined }))}
+                                                className="h-9"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">Lead Days</label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={deliveryConfig.leadDays}
+                                                onChange={(e) => setDeliveryConfig(prev => ({ ...prev, leadDays: Number(e.target.value) || 0 }))}
+                                                className="h-9"
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">Min days from today (0 = same day)</p>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <label className="text-xs font-medium text-muted-foreground">Max Advance Days</label>
+                                            <Input
+                                                type="number"
+                                                min={1}
+                                                value={deliveryConfig.maxAdvanceDays}
+                                                onChange={(e) => setDeliveryConfig(prev => ({ ...prev, maxAdvanceDays: Number(e.target.value) || 30 }))}
+                                                className="h-9"
+                                            />
+                                            <p className="text-[10px] text-muted-foreground">How far ahead users can book</p>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </CardContent>
@@ -660,6 +882,74 @@ export default function AddKitPage() {
                                     </div>
                                 ))}
                             </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Shipping & Delivery */}
+                    <Card className="border-border shadow-md overflow-hidden hover:shadow-lg transition-shadow duration-300">
+                        <CardHeader className="bg-linear-to-r from-orange-500 to-orange-600 py-4 px-6 text-white">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm text-white flex items-center justify-center text-sm font-bold shrink-0">
+                                    <Truck className="w-4 h-4" />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-base leading-tight">Shipping & Delivery</h3>
+                                    <p className="text-white/80 text-[11px] font-medium uppercase tracking-wider">Shown on product page</p>
+                                </div>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-5">
+                            <div className="flex items-center justify-between p-3 rounded-xl border border-orange-100 bg-orange-50/50">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="p-1.5 rounded-lg bg-white shadow-xs text-orange-600">
+                                        <Package className="w-3.5 h-3.5" />
+                                    </div>
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-gray-800">Show Shipping Info</span>
+                                </div>
+                                <Switch
+                                    checked={shipping.showShipping}
+                                    onCheckedChange={(v) => updateShipping('showShipping', v)}
+                                    className="data-[state=checked]:bg-[#8D0303] scale-90"
+                                />
+                            </div>
+
+                            {shipping.showShipping && (
+                                <div className="space-y-4">
+                                    <div className="flex items-center justify-between p-3 rounded-xl border border-green-100 bg-green-50/50">
+                                        <div className="flex items-center gap-2.5">
+                                            <div className="p-1.5 rounded-lg bg-white shadow-xs text-green-600">
+                                                <Truck className="w-3.5 h-3.5" />
+                                            </div>
+                                            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-800">Free Shipping</span>
+                                        </div>
+                                        <Switch
+                                            checked={shipping.freeShipping}
+                                            onCheckedChange={(v) => updateShipping('freeShipping', v)}
+                                            className="data-[state=checked]:bg-[#8D0303] scale-90"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Shipping Label</label>
+                                        <Input
+                                            placeholder="e.g., Free Shipping, ₹50 Shipping"
+                                            value={shipping.shippingLabel}
+                                            onChange={(e) => updateShipping('shippingLabel', e.target.value)}
+                                            className="h-10 border-gray-200 font-medium"
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Delivery Text</label>
+                                        <Input
+                                            placeholder="e.g., Delivery in 2-3 days"
+                                            value={shipping.deliveryText}
+                                            onChange={(e) => updateShipping('deliveryText', e.target.value)}
+                                            className="h-10 border-gray-200 font-medium"
+                                        />
+                                    </div>
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

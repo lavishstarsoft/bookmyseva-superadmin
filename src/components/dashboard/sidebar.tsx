@@ -26,7 +26,8 @@ import {
     Bot,
     BarChart3,
     Star,
-    Database
+    Database,
+    ShoppingCart
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
@@ -60,6 +61,16 @@ const routes = [
                 label: "Pooja Kits",
                 href: "/dashboard/kits",
                 icon: ShoppingBag
+            },
+            {
+                label: "Kit Orders",
+                href: "/dashboard/kit-orders",
+                icon: ShoppingCart
+            },
+            {
+                label: "Coupons",
+                href: "/dashboard/coupons",
+                icon: Tag
             }
         ]
     },

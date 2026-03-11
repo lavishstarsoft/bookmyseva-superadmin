@@ -22,6 +22,27 @@ export interface KitBadges {
     easyCancel: boolean;
 }
 
+export interface KitShipping {
+    freeShipping: boolean;
+    shippingLabel: string;
+    deliveryText: string;
+    showShipping: boolean;
+}
+
+export interface KitTimeSlot {
+    id: string;
+    label: string;
+    active: boolean;
+}
+
+export interface KitDeliveryConfig {
+    timeSlots: KitTimeSlot[];
+    bookingStartDate?: string;
+    bookingEndDate?: string;
+    leadDays: number;
+    maxAdvanceDays: number;
+}
+
 export interface Kit {
     _id?: string;
     title: string;
@@ -36,6 +57,8 @@ export interface Kit {
     marketPrice?: number | string;
     offerPrice?: number | string;
     badges?: KitBadges;
+    shipping?: KitShipping;
+    deliveryConfig?: KitDeliveryConfig;
     createdAt?: string;
     updatedAt?: string;
 }

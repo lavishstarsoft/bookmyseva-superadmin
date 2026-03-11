@@ -17,3 +17,6 @@ export type { ContentBlock, Blog, Category } from './content';
 
 export { storageApi } from './storage';
 export type { UploadResponse, StorageFile } from './storage';
+
+export { couponsApi } from './coupons';
+export type { Coupon } from './coupons';
