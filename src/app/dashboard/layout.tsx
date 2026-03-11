@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { Header } from "@/components/dashboard/header";
 import { Sidebar, MobileSidebar } from "@/components/dashboard/sidebar";
 import { SidebarProvider, useSidebar } from "@/components/dashboard/sidebar-context";
+import { GoogleMapsProvider } from "@/components/GoogleMapsProvider";
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +15,9 @@ export default function DashboardLayout({
 }) {
     return (
         <SidebarProvider>
-            <DashboardLayoutContent>{children}</DashboardLayoutContent>
+            <GoogleMapsProvider>
+                <DashboardLayoutContent>{children}</DashboardLayoutContent>
+            </GoogleMapsProvider>
         </SidebarProvider>
     );
 }

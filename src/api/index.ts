@@ -20,3 +20,6 @@ export type { UploadResponse, StorageFile } from './storage';
 
 export { couponsApi } from './coupons';
 export type { Coupon } from './coupons';
+
+export { deliveryZonesApi } from './deliveryZones';
+export type { DeliveryZone } from './deliveryZones';
