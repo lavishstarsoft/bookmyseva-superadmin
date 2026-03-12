@@ -23,3 +23,6 @@ export type { Coupon } from './coupons';
 
 export { deliveryZonesApi } from './deliveryZones';
 export type { DeliveryZone } from './deliveryZones';
+
+export { vendorsApi } from './vendors';
+export type { Vendor, VendorProduct } from './vendors';

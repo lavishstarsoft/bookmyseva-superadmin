@@ -73,8 +73,20 @@ const routes = [
     {
         label: "Vendors",
         icon: Store,
-        href: "/dashboard/vendors",
+        href: "#",
         color: "text-blue-500",
+        submenu: [
+            {
+                label: "All Vendors",
+                href: "/dashboard/vendors",
+                icon: Store
+            },
+            {
+                label: "Registration Form",
+                href: "/dashboard/vendors/registration-form",
+                icon: FileText
+            }
+        ]
     },
     {
         label: "Pujaris",
