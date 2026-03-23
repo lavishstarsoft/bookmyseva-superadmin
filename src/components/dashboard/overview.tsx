@@ -17,7 +17,11 @@ const data = [
     { name: "Dec", total: Math.floor(Math.random() * 5000) + 1000 },
 ]
 
-export function Overview() {
+export function Overview({ data = [] }: { data?: any[] }) {
+    if (data.length === 0) {
+        return <div className="flex items-center justify-center h-[350px] text-muted-foreground text-sm">No sales data available</div>
+    }
+
     return (
         <ResponsiveContainer width="100%" height={350}>
             <BarChart data={data}>

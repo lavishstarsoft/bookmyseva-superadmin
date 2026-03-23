@@ -59,6 +59,17 @@ export interface Kit {
     badges?: KitBadges;
     shipping?: KitShipping;
     deliveryConfig?: KitDeliveryConfig;
+    vendorId?: string | {
+        _id: string;
+        commissionType?: string;
+        commissionValue?: number;
+    };
+    vendorName?: string;
+    vendorApproved?: boolean;
+    source?: string;
+    commissionType?: string;
+    commissionValue?: number;
+    rejectionReason?: string;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -66,6 +77,14 @@ export interface Kit {
 export const kitsApi = {
     getAll: async () => {
         const response = await api.get<Kit[]>("kits");
+        return response.data;
+    },
+    getAllAdmin: async () => {
+        const response = await api.get<Kit[]>("kits/admin/all");
+        return response.data;
+    },
+    getPending: async () => {
+        const response = await api.get<Kit[]>("kits/admin/pending");
         return response.data;
     },
     getById: async (id: string) => {
@@ -82,6 +101,14 @@ export const kitsApi = {
     },
     delete: async (id: string) => {
         const response = await api.delete(`kits/${id}`);
+        return response.data;
+    },
+    approveKit: async (id: string, data: { commissionType: string; commissionValue: number }) => {
+        const response = await api.patch(`kits/${id}/approve`, data);
+        return response.data;
+    },
+    rejectKit: async (id: string, reason: string) => {
+        const response = await api.patch(`kits/${id}/reject`, { reason });
         return response.data;
     }
 };

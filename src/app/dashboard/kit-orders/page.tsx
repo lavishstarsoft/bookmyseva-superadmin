@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback } from "react";
 import {
     Search, Loader2, ShoppingCart, Package, CheckCircle2,
     Truck, XCircle, Clock, ChevronLeft, ChevronRight,
-    RefreshCw, Calendar, Phone, User, IndianRupee
+    RefreshCw, Calendar, Phone, User, IndianRupee, Store, Percent,
+    Printer, PenLine
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,10 +24,19 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { kitOrdersApi, KitOrder, KitOrderStatus, KitOrderStats } from "@/api/kitOrders";
+import { kitOrdersApi, KitOrder, KitOrderStatus, KitOrderStats, KitOrderRevenue } from "@/api/kitOrders";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import ShippingLabel from "./ShippingLabel";
 
 // ─── Status Config ────────────────────────────────────────────────────────────
 
@@ -88,12 +98,19 @@ function StatCard({ label, value, color, icon }: { label: string; value: number;
 export default function KitOrdersPage() {
     const [orders, setOrders] = useState<KitOrder[]>([]);
     const [stats, setStats] = useState<KitOrderStats>({ total: 0, pending: 0, confirmed: 0, delivered: 0, cancelled: 0 });
+    const [revenue, setRevenue] = useState<KitOrderRevenue>({ totalRevenue: 0, totalCommission: 0, totalVendorPayout: 0 });
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState("");
     const [statusFilter, setStatusFilter] = useState("all");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
+
+    // Tracking & Label State
+    const [printingOrder, setPrintingOrder] = useState<KitOrder | null>(null);
+    const [editingTrackingOrder, setEditingTrackingOrder] = useState<KitOrder | null>(null);
+    const [trackingDetails, setTrackingDetails] = useState({ trackingId: "", courierName: "" });
+    const [updatingTracking, setUpdatingTracking] = useState(false);
 
     const fetchOrders = useCallback(async () => {
         setLoading(true);
@@ -106,6 +123,7 @@ export default function KitOrdersPage() {
             });
             setOrders(res?.orders || []);
             setStats(res?.stats || { total: 0, pending: 0, confirmed: 0, delivered: 0, cancelled: 0 });
+            setRevenue(res?.revenue || { totalRevenue: 0, totalCommission: 0, totalVendorPayout: 0 });
             setTotalPages(res?.pagination?.pages || 1);
         } catch {
             toast.error("Failed to load kit orders");
@@ -136,8 +154,34 @@ export default function KitOrdersPage() {
         }
     };
 
+    const openTrackingDialog = (order: KitOrder) => {
+        setEditingTrackingOrder(order);
+        setTrackingDetails({
+            trackingId: order.trackingId || "",
+            courierName: order.courierName || ""
+        });
+    };
+
+    const handleUpdateTracking = async () => {
+        if (!editingTrackingOrder) return;
+        setUpdatingTracking(true);
+        try {
+            await kitOrdersApi.updateStatus(editingTrackingOrder._id, {
+                trackingId: trackingDetails.trackingId,
+                courierName: trackingDetails.courierName
+            });
+            toast.success("Tracking details updated successfully");
+            setEditingTrackingOrder(null);
+            fetchOrders();
+        } catch (error) {
+            toast.error("Failed to update tracking details");
+        } finally {
+            setUpdatingTracking(false);
+        }
+    };
+
     return (
-        <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
+        <div className="space-y-6">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -193,6 +237,43 @@ export default function KitOrdersPage() {
                 />
             </div>
 
+            {/* Revenue Stats Row */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="bg-white rounded-xl border p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <IndianRupee className="w-5 h-5 text-emerald-700" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-black text-gray-900">₹{revenue.totalRevenue.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Total Revenue</div>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white rounded-xl border p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#8D0303]/10 flex items-center justify-center">
+                            <Percent className="w-5 h-5 text-[#8D0303]" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-black text-[#8D0303]">₹{revenue.totalCommission.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Platform Earnings</div>
+                        </div>
+                    </div>
+                </div>
+                <div className="bg-white rounded-xl border p-4 shadow-sm">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Store className="w-5 h-5 text-blue-700" />
+                        </div>
+                        <div>
+                            <div className="text-2xl font-black text-blue-700">₹{revenue.totalVendorPayout.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Vendor Payouts</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Filters */}
             <div className="bg-white rounded-xl border p-4 shadow-sm flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">
@@ -242,10 +323,11 @@ export default function KitOrdersPage() {
                                     <TableHead className="font-bold text-xs uppercase tracking-wider">Order ID</TableHead>
                                     <TableHead className="font-bold text-xs uppercase tracking-wider">Customer</TableHead>
                                     <TableHead className="font-bold text-xs uppercase tracking-wider">Kit</TableHead>
-                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Plan</TableHead>
-                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Qty</TableHead>
+                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Vendor</TableHead>
                                     <TableHead className="font-bold text-xs uppercase tracking-wider">Amount</TableHead>
-                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Delivery</TableHead>
+                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Commission</TableHead>
+                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Vendor Payout</TableHead>
+                                    <TableHead className="font-bold text-xs uppercase tracking-wider">Logistics</TableHead>
                                     <TableHead className="font-bold text-xs uppercase tracking-wider">Status</TableHead>
                                     <TableHead className="font-bold text-xs uppercase tracking-wider">Action</TableHead>
                                 </TableRow>
@@ -293,39 +375,111 @@ export default function KitOrdersPage() {
                                                 )}
                                             </TableCell>
 
-                                            {/* Plan */}
+                                            {/* Vendor */}
                                             <TableCell>
-                                                <div className="text-sm font-medium text-gray-700">{order.plan.label}</div>
-                                                <div className="text-xs text-muted-foreground">₹{order.plan.price}/unit</div>
-                                            </TableCell>
-
-                                            {/* Qty */}
-                                            <TableCell>
-                                                <span className="font-bold text-gray-900">{order.quantity}</span>
+                                                {order.vendor?.vendorId ? (
+                                                    <div className="flex items-center gap-1.5">
+                                                        <Store className="w-3.5 h-3.5 text-blue-600" />
+                                                        <span className="font-semibold text-sm text-gray-900 truncate max-w-[120px]">
+                                                            {order.vendor.vendorName || 'Unknown Vendor'}
+                                                        </span>
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic">Platform</span>
+                                                )}
+                                                {order.vendorStatus && order.vendorStatus !== 'none' && (
+                                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded mt-0.5 inline-block capitalize ${
+                                                        order.vendorStatus === 'accepted' ? 'bg-green-100 text-green-700' :
+                                                        order.vendorStatus === 'pending' ? 'bg-amber-100 text-amber-700' :
+                                                        order.vendorStatus === 'rejected' ? 'bg-red-100 text-red-700' :
+                                                        order.vendorStatus === 'shipped' ? 'bg-purple-100 text-purple-700' :
+                                                        'bg-blue-100 text-blue-700'
+                                                    }`}>
+                                                        {order.vendorStatus}
+                                                    </span>
+                                                )}
                                             </TableCell>
 
                                             {/* Amount */}
                                             <TableCell>
                                                 <div className="flex items-center gap-1 font-black text-gray-900">
                                                     <IndianRupee className="w-3.5 h-3.5 text-muted-foreground" />
-                                                    {order.totalAmount}
+                                                    {order.totalAmount.toLocaleString()}
                                                 </div>
                                                 <div className={`text-[10px] font-semibold mt-0.5 ${order.paymentStatus === 'paid' ? 'text-green-700' : order.paymentStatus === 'failed' ? 'text-red-600' : 'text-amber-600'}`}>
                                                     {order.paymentStatus === 'paid' ? 'Paid' : order.paymentStatus === 'failed' ? 'Failed' : 'Pending'}
                                                 </div>
                                             </TableCell>
 
-                                            {/* Delivery */}
+                                            {/* Commission */}
                                             <TableCell>
-                                                {order.deliveryDate && (
-                                                    <div className="flex items-center gap-1 text-xs font-medium text-gray-700">
-                                                        <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-                                                        {format(new Date(order.deliveryDate), "dd MMM yyyy")}
+                                                {order.commission ? (
+                                                    <div>
+                                                        <div className="flex items-center gap-1 font-bold text-[#8D0303]">
+                                                            <IndianRupee className="w-3 h-3" />
+                                                            {order.commission.amount.toLocaleString()}
+                                                        </div>
+                                                        <div className="text-[10px] text-muted-foreground">
+                                                            {order.commission.type === 'percentage'
+                                                                ? `${order.commission.value}%`
+                                                                : 'Fixed'}
+                                                        </div>
                                                     </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">—</span>
                                                 )}
-                                                {order.deliverySlot && (
-                                                    <div className="text-[10px] text-muted-foreground mt-0.5">
-                                                        {order.deliverySlot}
+                                            </TableCell>
+
+                                            {/* Vendor Payout */}
+                                            <TableCell>
+                                                {order.vendorPayout !== undefined ? (
+                                                    <div className="flex items-center gap-1 font-bold text-blue-700">
+                                                        <IndianRupee className="w-3 h-3" />
+                                                        {order.vendorPayout.toLocaleString()}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground">—</span>
+                                                )}
+                                            </TableCell>
+
+                                            {/* Ivanu: Logic to hide/show logistics based on status */}
+                                            {/* Logistics */}
+                                            <TableCell className="align-top">
+                                                {['pending', 'cancelled'].includes(order.status) ? (
+                                                    <span className="text-xs text-muted-foreground italic">
+                                                        {order.status === 'pending' ? 'Pending Confirmation' : 'Order Cancelled'}
+                                                    </span>
+                                                ) : (
+                                                    <div className="flex flex-col gap-2">
+                                                        {order.trackingId ? (
+                                                            <div className="text-xs bg-muted/50 p-2 rounded border border-dashed">
+                                                                <div className="font-semibold text-gray-900">{order.courierName}</div>
+                                                                <div className="text-muted-foreground font-mono">{order.trackingId}</div>
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground italic">No tracking info</span>
+                                                        )}
+                                                        <div className="flex items-center gap-2">
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-7 px-2 text-xs gap-2"
+                                                                onClick={() => openTrackingDialog(order)}
+                                                                title="Edit Tracking Details"
+                                                            >
+                                                                <PenLine className="w-3.5 h-3.5" />
+                                                                {order.trackingId ? 'Edit' : 'Add Info'}
+                                                            </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-7 w-7 p-0"
+                                                                onClick={() => setPrintingOrder(order)}
+                                                                title="Print Shipping Label"
+                                                            >
+                                                                <Printer className="w-3.5 h-3.5" />
+                                                            </Button>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </TableCell>
@@ -396,6 +550,60 @@ export default function KitOrdersPage() {
                         <ChevronRight className="w-4 h-4" />
                     </Button>
                 </div>
+            )}
+
+            {/* Tracking Dialog */}
+            <Dialog open={!!editingTrackingOrder} onOpenChange={(open) => !open && setEditingTrackingOrder(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Update Logistics Details</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="tracking-id">Tracking ID</Label>
+                            <Input
+                                id="tracking-id"
+                                placeholder="Enter tracking number"
+                                value={trackingDetails.trackingId}
+                                onChange={(e) => setTrackingDetails(prev => ({ ...prev, trackingId: e.target.value }))}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="courier-name">Courier Name</Label>
+                            <Input
+                                id="courier-name"
+                                placeholder="e.g. DTDC, BlueDart, Delhivery"
+                                value={trackingDetails.courierName}
+                                onChange={(e) => setTrackingDetails(prev => ({ ...prev, courierName: e.target.value }))}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditingTrackingOrder(null)}>Cancel</Button>
+                        <Button
+                            onClick={handleUpdateTracking}
+                            disabled={updatingTracking}
+                            className="bg-[#8D0303] hover:bg-[#700202] text-white"
+                        >
+                            {updatingTracking ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Updating...
+                                </>
+                            ) : (
+                                "Save Details"
+                            )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Shipping Label Component */}
+            {printingOrder && (
+                <ShippingLabel
+                    order={printingOrder}
+                    onClose={() => setPrintingOrder(null)}
+                />
             )}
         </div>
     );

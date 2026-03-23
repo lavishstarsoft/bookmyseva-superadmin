@@ -27,8 +27,25 @@ export interface KitOrderAddress {
     pincode: string;
 }
 
+export interface KitOrderVendor {
+    vendorId: string | null;
+    vendorName: string;
+}
+
+export interface VendorDetails {
+    phone: string;
+    address: string;
+}
+
+export interface KitOrderCommission {
+    type: 'percentage' | 'fixed';
+    value: number;
+    amount: number;
+}
+
 export type KitOrderStatus = 'pending' | 'confirmed' | 'out_for_delivery' | 'delivered' | 'cancelled';
 export type KitOrderPaymentStatus = 'pending' | 'paid' | 'failed';
+export type KitOrderVendorStatus = 'none' | 'pending' | 'accepted' | 'rejected' | 'packed' | 'shipped';
 
 export interface KitOrder {
     _id: string;
@@ -45,6 +62,13 @@ export interface KitOrder {
     paymentStatus: KitOrderPaymentStatus;
     paymentId: string;
     notes: string;
+    vendor?: KitOrderVendor;
+    vendorStatus?: KitOrderVendorStatus;
+    commission?: KitOrderCommission;
+    vendorPayout?: number;
+    trackingId?: string;
+    courierName?: string;
+    vendorDetails?: VendorDetails;
     createdAt: string;
     updatedAt: string;
 }
@@ -57,10 +81,17 @@ export interface KitOrderStats {
     cancelled: number;
 }
 
+export interface KitOrderRevenue {
+    totalRevenue: number;
+    totalCommission: number;
+    totalVendorPayout: number;
+}
+
 export interface KitOrdersResponse {
     orders: KitOrder[];
     pagination: { total: number; page: number; limit: number; pages: number };
     stats: KitOrderStats;
+    revenue?: KitOrderRevenue;
 }
 
 export const kitOrdersApi = {
@@ -72,7 +103,7 @@ export const kitOrdersApi = {
         const response = await api.get<KitOrder>(`kit-orders/${id}`);
         return response.data;
     },
-    updateStatus: async (id: string, data: { status?: KitOrderStatus; paymentStatus?: KitOrderPaymentStatus; notes?: string }) => {
+    updateStatus: async (id: string, data: { status?: KitOrderStatus; paymentStatus?: KitOrderPaymentStatus; notes?: string; trackingId?: string; courierName?: string }) => {
         const response = await api.patch<{ success: boolean; order: KitOrder }>(`kit-orders/${id}/status`, data);
         return response.data;
     }

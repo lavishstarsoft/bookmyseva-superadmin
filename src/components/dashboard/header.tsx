@@ -19,7 +19,7 @@ import { useRouter } from "next/navigation";
 
 
 export function Header() {
-    const { unreadCount, latestEnquiries, markAsRead, clearNotifications } = useSocket();
+    const { unreadCount, notifications, markAsRead, markAllAsRead, clearNotifications } = useSocket();
     const [mounted, setMounted] = useState(false);
     const router = useRouter();
 
@@ -28,14 +28,30 @@ export function Header() {
         setMounted(true);
     }, []);
 
-    const handleNotificationClick = (enquiry: any) => {
-        markAsRead();
-        router.push(`/dashboard/enquiries`);
+    const getNotificationTarget = (notification: any) => {
+        if (notification.entityType === 'order') return '/dashboard/kit-orders';
+        if (notification.entityType === 'vendor') return '/dashboard/vendors';
+        if (notification.entityType === 'withdrawal') return '/dashboard/payouts';
+        if (notification.entityType === 'enquiry') return '/dashboard/enquiries';
+        return '/dashboard';
+    };
+
+    const formatRelativeTime = (dateStr: string) => {
+        const date = new Date(dateStr).getTime();
+        const diffSec = Math.floor((Date.now() - date) / 1000);
+        if (diffSec < 60) return 'Just now';
+        if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+        if (diffSec < 86400) return `${Math.floor(diffSec / 3600)}h ago`;
+        return `${Math.floor(diffSec / 86400)}d ago`;
+    };
+
+    const handleNotificationClick = async (notification: any) => {
+        await markAsRead(notification._id);
+        router.push(getNotificationTarget(notification));
     };
 
     const handleViewAllClick = () => {
-        markAsRead();
-        router.push('/dashboard/enquiries');
+        router.push('/dashboard/notifications');
     };
 
     return (
@@ -56,7 +72,7 @@ export function Header() {
                 {mounted ? (
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                            <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition relative" onClick={markAsRead}>
+                            <button className="p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 rounded-full transition relative">
                                 <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-300" />
                                 {unreadCount > 0 && (
                                     <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#8D0303] text-[10px] font-bold text-white shadow-sm ring-2 ring-white dark:ring-black">
@@ -68,7 +84,7 @@ export function Header() {
                         <DropdownMenuContent align="end" className="w-80">
                             <div className="flex items-center justify-between px-2 py-1.5">
                                 <DropdownMenuLabel className="p-0">Notifications</DropdownMenuLabel>
-                                {latestEnquiries.length > 0 && (
+                                {notifications.length > 0 && (
                                     <button
                                         onClick={(e) => {
                                             e.preventDefault();
@@ -81,28 +97,28 @@ export function Header() {
                                 )}
                             </div>
                             <DropdownMenuSeparator />
-                            {latestEnquiries.length === 0 ? (
+                            {notifications.length === 0 ? (
                                 <div className="p-4 text-center text-sm text-muted-foreground">
                                     No new notifications
                                 </div>
                             ) : (
-                                latestEnquiries.map((enquiry, i) => (
+                                notifications.map((notification) => (
                                     <DropdownMenuItem
-                                        key={i}
+                                        key={notification._id}
                                         className="flex flex-col items-start gap-1 p-3 cursor-pointer focus:bg-[#8D0303] focus:text-white group"
-                                        onClick={() => handleNotificationClick(enquiry)}
+                                        onClick={() => handleNotificationClick(notification)}
                                     >
                                         <div className="flex w-full items-center justify-between">
                                             <span className="font-semibold text-[#8D0303] group-focus:text-white flex items-center gap-2">
                                                 <PartyPopper className="h-3 w-3" />
-                                                {enquiry.festivalName}
+                                                {notification.title}
                                             </span>
                                             <span className="text-[10px] text-muted-foreground group-focus:text-white/80">
-                                                Just now
+                                                {formatRelativeTime(notification.createdAt)}
                                             </span>
                                         </div>
                                         <p className="text-sm group-focus:text-white/90">
-                                            <span className="font-medium">{enquiry.userDetails?.name || 'Guest'}</span> sent a booking request.
+                                            {notification.message}
                                         </p>
                                     </DropdownMenuItem>
                                 ))
@@ -112,7 +128,13 @@ export function Header() {
                                 className="justify-center text-[#8D0303] font-medium cursor-pointer"
                                 onClick={handleViewAllClick}
                             >
-                                View All Enquiries
+                                View All Notifications
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                className="justify-center text-muted-foreground cursor-pointer"
+                                onClick={() => markAllAsRead()}
+                            >
+                                Mark All As Read
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>

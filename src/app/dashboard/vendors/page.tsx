@@ -49,6 +49,8 @@ export default function VendorsPage() {
     } | null>(null);
     const [rejectReason, setRejectReason] = useState("");
     const [actionLoading, setActionLoading] = useState(false);
+    const [commissionType, setCommissionType] = useState<"percentage" | "fixed">("percentage");
+    const [commissionValue, setCommissionValue] = useState("");
 
     const fetchVendors = async () => {
         try {
@@ -81,7 +83,10 @@ export default function VendorsPage() {
         setActionLoading(true);
         try {
             if (actionDialog.type === "approve") {
-                await vendorsApi.approve(actionDialog.vendorId);
+                await vendorsApi.approve(actionDialog.vendorId, {
+                    commissionType,
+                    commissionValue: Number(commissionValue) || 0,
+                });
                 toast.success("Vendor approved successfully");
             } else if (actionDialog.type === "reject") {
                 await vendorsApi.reject(actionDialog.vendorId, rejectReason);
@@ -100,6 +105,8 @@ export default function VendorsPage() {
             setActionLoading(false);
             setActionDialog(null);
             setRejectReason("");
+            setCommissionValue("");
+            setCommissionType("percentage");
         }
     };
 
@@ -206,6 +213,7 @@ export default function VendorsPage() {
                                 <TableHead>Vendor</TableHead>
                                 <TableHead>Contact</TableHead>
                                 <TableHead>Products</TableHead>
+                                <TableHead>Commission</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead>Joined</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
@@ -214,13 +222,13 @@ export default function VendorsPage() {
                         <TableBody>
                             {loading ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-10">
+                                    <TableCell colSpan={7} className="text-center py-10">
                                         <Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" />
                                     </TableCell>
                                 </TableRow>
                             ) : vendors.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={6} className="text-center py-10 text-muted-foreground">
+                                    <TableCell colSpan={7} className="text-center py-10 text-muted-foreground">
                                         No vendors found.
                                     </TableCell>
                                 </TableRow>
@@ -256,6 +264,15 @@ export default function VendorsPage() {
                                                 <Package className="h-3.5 w-3.5 text-muted-foreground" />
                                                 <span>{vendor.productCount || 0}</span>
                                             </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            {vendor.commissionValue ? (
+                                                <Badge variant="secondary" className="text-xs">
+                                                    {vendor.commissionValue}{vendor.commissionType === "fixed" ? " ₹" : "%"}
+                                                </Badge>
+                                            ) : (
+                                                <span className="text-xs text-muted-foreground">—</span>
+                                            )}
                                         </TableCell>
                                         <TableCell>{getStatusBadge(vendor.status)}</TableCell>
                                         <TableCell className="text-muted-foreground">
@@ -311,7 +328,7 @@ export default function VendorsPage() {
             </Card>
 
             {/* Action Confirmation Dialog */}
-            <AlertDialog open={!!actionDialog} onOpenChange={() => { setActionDialog(null); setRejectReason(""); }}>
+            <AlertDialog open={!!actionDialog} onOpenChange={() => { setActionDialog(null); setRejectReason(""); setCommissionValue(""); setCommissionType("percentage"); }}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
                         <AlertDialogTitle>
@@ -320,9 +337,36 @@ export default function VendorsPage() {
                             {actionDialog?.type === "suspend" && "Suspend Vendor"}
                             {actionDialog?.type === "delete" && "Delete Vendor Permanently"}
                         </AlertDialogTitle>
-                        <AlertDialogDescription>
+                        <AlertDialogDescription asChild>
+                            <div>
                             {actionDialog?.type === "approve" && (
-                                <>Are you sure you want to approve <strong>{actionDialog.vendorName}</strong>? They will be able to log in and manage products.</>
+                                <div className="space-y-4">
+                                    <p>Approve <strong>{actionDialog.vendorName}</strong>? They will be able to log in and manage products.</p>
+                                    <div className="rounded-lg border p-4 space-y-3 bg-gray-50">
+                                        <p className="text-sm font-semibold text-gray-900">Set Commission</p>
+                                        <div className="flex items-center gap-3">
+                                            <select
+                                                value={commissionType}
+                                                onChange={(e) => setCommissionType(e.target.value as "percentage" | "fixed")}
+                                                className="h-9 rounded-md border border-input bg-white px-3 text-sm"
+                                            >
+                                                <option value="percentage">Percentage (%)</option>
+                                                <option value="fixed">Fixed (₹)</option>
+                                            </select>
+                                            <Input
+                                                type="number"
+                                                placeholder={commissionType === "percentage" ? "e.g. 15" : "e.g. 100"}
+                                                value={commissionValue}
+                                                onChange={(e) => setCommissionValue(e.target.value)}
+                                                className="w-32"
+                                                min="0"
+                                            />
+                                            <span className="text-sm text-muted-foreground">
+                                                {commissionType === "percentage" ? "%" : "₹ per order"}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             )}
                             {actionDialog?.type === "reject" && (
                                 <div className="space-y-3">
@@ -340,6 +384,7 @@ export default function VendorsPage() {
                             {actionDialog?.type === "delete" && (
                                 <>Are you sure you want to permanently delete <strong>{actionDialog.vendorName}</strong>? This will remove the vendor account, all their products, and payout records. This action cannot be undone.</>
                             )}
+                            </div>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -349,8 +394,8 @@ export default function VendorsPage() {
                             disabled={actionLoading}
                             className={
                                 actionDialog?.type === "approve" ? "bg-green-600 hover:bg-green-700" :
-                                actionDialog?.type === "reject" || actionDialog?.type === "delete" ? "bg-red-600 hover:bg-red-700" :
-                                ""
+                                    actionDialog?.type === "reject" || actionDialog?.type === "delete" ? "bg-red-600 hover:bg-red-700" :
+                                        ""
                             }
                         >
                             {actionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}

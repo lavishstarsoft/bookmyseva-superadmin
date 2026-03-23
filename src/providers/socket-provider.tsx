@@ -4,24 +4,27 @@ import { createContext, useContext, useEffect, useState, useRef, useCallback } f
 import { io as ClientIO, Socket } from "socket.io-client";
 import { toast } from "sonner";
 import { getBaseUrl } from "@/lib/axios";
+import api from "@/lib/axios";
 
 type SocketContextType = {
     socket: Socket | null;
     isConnected: boolean;
     unreadCount: number;
-    latestEnquiries: EnquiryNotification[];
-    markAsRead: () => void;
+    notifications: AdminNotification[];
+    markAsRead: (id: string) => Promise<void>;
+    markAllAsRead: () => Promise<void>;
     clearNotifications: () => void;
 };
 
-interface EnquiryNotification {
+interface AdminNotification {
     _id: string;
-    festivalName: string;
-    userDetails?: {
-        name: string;
-        email?: string;
-        phone?: string;
-    };
+    type: string;
+    title: string;
+    message: string;
+    entityType?: string;
+    entityId?: string;
+    metadata?: Record<string, any>;
+    isRead: boolean;
     createdAt: string;
 }
 
@@ -29,8 +32,9 @@ const SocketContext = createContext<SocketContextType>({
     socket: null,
     isConnected: false,
     unreadCount: 0,
-    latestEnquiries: [],
-    markAsRead: () => {},
+    notifications: [],
+    markAsRead: async () => {},
+    markAllAsRead: async () => {},
     clearNotifications: () => {},
 });
 
@@ -49,13 +53,23 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
     const [socket, setSocket] = useState<Socket | null>(null);
     const [isConnected, setIsConnected] = useState(false);
     const [unreadCount, setUnreadCount] = useState(0);
-    const [latestEnquiries, setLatestEnquiries] = useState<EnquiryNotification[]>([]);
+    const [notifications, setNotifications] = useState<AdminNotification[]>([]);
     const audioRef = useRef<HTMLAudioElement | null>(null);
     const audioUnlockedRef = useRef(false);
 
+    const fetchInitialNotifications = useCallback(async () => {
+        try {
+            const res = await api.get('/admin/notifications', { params: { page: 1, limit: 10 } });
+            setNotifications(res.data?.notifications || []);
+            setUnreadCount(res.data?.unreadCount || 0);
+        } catch {
+            // Silent fail: dropdown will still work for realtime events.
+        }
+    }, []);
+
     // Initialize audio on first user interaction
     useEffect(() => {
-        audioRef.current = new Audio("/sounds/notification.mp3");
+        audioRef.current = new Audio("/superadmin/sounds/notification.mp3");
         audioRef.current.preload = "auto";
 
         const unlockAudio = () => {
@@ -80,10 +94,10 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Play notification sound
     const playNotificationSound = useCallback(() => {
-        if (audioRef.current && audioUnlockedRef.current) {
+        if (audioRef.current) {
             audioRef.current.currentTime = 0;
-            audioRef.current.play().catch(() => {
-                // Audio play failed - user interaction required
+            audioRef.current.play().catch((err) => {
+                console.error("Error playing notification sound:", err);
             });
         }
     }, []);
@@ -124,22 +138,19 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
             setIsConnected(false);
         });
 
-        // Listen for new enquiries
-        socketInstance.on("new_enquiry", (data: EnquiryNotification) => {
+        socketInstance.on("notification:new", (data: AdminNotification) => {
             playNotificationSound();
 
-            toast("🔔 New Booking Received!", {
-                description: `${data.userDetails?.name || 'Guest'} booked ${data.festivalName}`,
-                action: {
-                    label: "View",
-                    onClick: () => {
-                        window.location.href = "/dashboard/enquiries";
-                    },
-                },
+            toast(`🔔 ${data.title}`, {
+                description: data.message,
             });
 
             setUnreadCount((prev) => prev + 1);
-            setLatestEnquiries((prev) => [data, ...prev].slice(0, 5));
+            setNotifications((prev) => [data, ...prev].slice(0, 10));
+        });
+
+        socketInstance.on("notification:unread_count", (data: { unreadCount: number }) => {
+            setUnreadCount(data.unreadCount || 0);
         });
 
         setSocket(socketInstance);
@@ -149,12 +160,33 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
         };
     }, [playNotificationSound]);
 
-    const markAsRead = useCallback(() => {
-        setUnreadCount(0);
+    useEffect(() => {
+        fetchInitialNotifications();
+    }, [fetchInitialNotifications]);
+
+    const markAsRead = useCallback(async (id: string) => {
+        try {
+            await api.patch(`/admin/notifications/${id}/read`);
+            setNotifications((prev) => prev.map((n) => (n._id === id ? { ...n, isRead: true } : n)));
+            setUnreadCount((prev) => Math.max(0, prev - 1));
+        } catch {
+            // no-op
+        }
+    }, []);
+
+    const markAllAsRead = useCallback(async () => {
+        try {
+            await api.patch('/admin/notifications/read-all');
+            setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+            setUnreadCount(0);
+        } catch {
+            // no-op
+        }
     }, []);
 
     const clearNotifications = useCallback(() => {
-        setLatestEnquiries([]);
+        api.delete('/admin/notifications/clear').catch(() => {});
+        setNotifications([]);
         setUnreadCount(0);
     }, []);
 
@@ -164,8 +196,9 @@ export const SocketProvider = ({ children }: { children: React.ReactNode }) => {
                 socket,
                 isConnected,
                 unreadCount,
-                latestEnquiries,
+                notifications,
                 markAsRead,
+                markAllAsRead,
                 clearNotifications,
             }}
         >

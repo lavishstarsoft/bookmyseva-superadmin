@@ -25,6 +25,8 @@ export interface Vendor {
     approvedBy: string;
     approvedAt: string;
     rejectionReason: string;
+    commissionType: 'percentage' | 'fixed';
+    commissionValue: number;
     isActive: boolean;
     lastLogin: string;
     customFields: Record<string, string>;
@@ -56,8 +58,8 @@ export const vendorsApi = {
         return data;
     },
 
-    approve: async (id: string) => {
-        const { data } = await api.patch(`/admin/vendors/${id}/approve`);
+    approve: async (id: string, commission?: { commissionType: string; commissionValue: number }) => {
+        const { data } = await api.patch(`/admin/vendors/${id}/approve`, commission || {});
         return data;
     },
 
@@ -88,6 +90,11 @@ export const vendorsApi = {
 
     rejectProduct: async (productId: string) => {
         const { data } = await api.patch(`/admin/vendor-products/${productId}/reject`);
+        return data;
+    },
+
+    updateCommission: async (id: string, commissionType: string, commissionValue: number) => {
+        const { data } = await api.patch(`/admin/vendors/${id}/commission`, { commissionType, commissionValue });
         return data;
     },
 };

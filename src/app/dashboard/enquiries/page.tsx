@@ -119,7 +119,7 @@ function EnquiriesContent() {
 
             socketInstance.on("new_enquiry", (newEnquiry: Enquiry) => {
                 // Play Sound
-                const audio = new Audio("/sounds/notification.mp3");
+                const audio = new Audio("/superadmin/sounds/notification.mp3");
                 audio.play().catch(e => console.log("Audio play failed", e));
 
                 // Show Toast

@@ -26,3 +26,6 @@ export type { DeliveryZone } from './deliveryZones';
 
 export { vendorsApi } from './vendors';
 export type { Vendor, VendorProduct } from './vendors';
+
+export { notificationsApi } from './notifications';
+export type { AdminNotification } from './notifications';

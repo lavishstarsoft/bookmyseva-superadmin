@@ -23,12 +23,14 @@ import {
     ScrollText,
     Tag,
     MessageSquare,
+    Bell,
     Bot,
     BarChart3,
     Star,
     Database,
     ShoppingCart,
-    MapPin
+    MapPin,
+    Wallet
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
@@ -62,7 +64,15 @@ const routes = [
                 label: "Pooja Kits",
                 href: "/dashboard/kits",
                 icon: ShoppingBag
-            },
+            }
+        ]
+    },
+    {
+        label: "Orders",
+        icon: ShoppingCart,
+        href: "#",
+        color: "text-emerald-600",
+        submenu: [
             {
                 label: "Kit Orders",
                 href: "/dashboard/kit-orders",
@@ -80,6 +90,11 @@ const routes = [
                 label: "All Vendors",
                 href: "/dashboard/vendors",
                 icon: Store
+            },
+            {
+                label: "Vendor Payouts",
+                href: "/dashboard/payouts",
+                icon: Wallet
             },
             {
                 label: "Registration Form",
@@ -217,6 +232,11 @@ const routes = [
                 label: "Chat Analytics",
                 href: "/dashboard/chat/analytics",
                 icon: BarChart3
+            },
+            {
+                label: "Notifications",
+                href: "/dashboard/notifications",
+                icon: Bell
             }
         ]
     },

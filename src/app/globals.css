@@ -415,3 +415,8 @@
 .youtube-resizer-container[style*="float: none"] {
   @apply clear-both mx-auto block;
 }
+/* Force white text on maroon buttons */
+.bg-maroon, .bg-maroon-dark, .bg-\[\#8D0303\] {
+    color: white !important;
+}
+
