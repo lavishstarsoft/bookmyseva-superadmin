@@ -50,7 +50,7 @@ export default function PayoutsPage() {
     const [totalPages, setTotalPages] = useState(1);
 
     // Modal state
-    const [payModal, setPayModal] = useState<{ open: boolean; id: string; name: string; amount: number } | null>(null);
+    const [payModal, setPayModal] = useState<{ open: boolean; id: string; name: string; amount: number; type: string } | null>(null);
     const [transactionRef, setTransactionRef] = useState("");
     const [remarks, setRemarks] = useState("");
     const [processing, setProcessing] = useState(false);
@@ -390,9 +390,11 @@ export default function PayoutsPage() {
                                                                 size="sm"
                                                                 className="bg-blue-600 hover:bg-blue-700 text-white"
                                                                 onClick={() => setPayModal({
+                                                                    open: true,
                                                                     id: req._id,
                                                                     name: req.vendorName,
-                                                                    amount: req.amount
+                                                                    amount: req.amount,
+                                                                    type: 'withdrawal'
                                                                 })}
                                                             >
                                                                 <CreditCard className="w-3 h-3 mr-1" /> Mark Paid
