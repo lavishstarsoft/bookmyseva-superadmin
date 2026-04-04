@@ -29,3 +29,9 @@ export type { Vendor, VendorProduct } from './vendors';
 
 export { notificationsApi } from './notifications';
 export type { AdminNotification } from './notifications';
+
+export { prasadamsApi } from './prasadams';
+export type { Prasadam, PricingTier, ComboItem, PrasadamBadges, PrasadamShipping, PrasadamDeliveryConfig, Category as PrasadamCategory } from './prasadams';
+
+export { prasadamCategoriesApi } from './prasadam-categories';
+export type { PrasadamCategory as PrasadamCategoryModel } from './prasadam-categories';

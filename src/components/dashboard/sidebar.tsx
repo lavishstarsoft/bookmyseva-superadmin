@@ -30,7 +30,8 @@ import {
     Database,
     ShoppingCart,
     MapPin,
-    Wallet
+    Wallet,
+    Cookie
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
@@ -64,6 +65,11 @@ const routes = [
                 label: "Pooja Kits",
                 href: "/dashboard/kits",
                 icon: ShoppingBag
+            },
+            {
+                label: "Prasadams",
+                href: "/dashboard/prasadams",
+                icon: Cookie
             }
         ]
     },
@@ -77,6 +83,11 @@ const routes = [
                 label: "Kit Orders",
                 href: "/dashboard/kit-orders",
                 icon: ShoppingCart
+            },
+            {
+                label: "Prasadam Orders",
+                href: "/dashboard/prasadam-orders",
+                icon: Cookie
             }
         ]
     },

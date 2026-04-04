@@ -24,6 +24,21 @@ const nextConfig: NextConfig = {
         protocol: 'http',
         hostname: 'localhost',
       },
+      {
+        // Unsplash images
+        protocol: 'https',
+        hostname: 'images.unsplash.com',
+      },
+      {
+        // Local network IPs for development
+        protocol: 'http',
+        hostname: '192.168.*.*',
+      },
+      {
+        // Production domain
+        protocol: 'https',
+        hostname: 'bookmysevaa.com',
+      },
     ],
   },
   // Security headers

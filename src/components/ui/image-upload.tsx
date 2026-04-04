@@ -230,6 +230,9 @@ export const ImageUpload = ({
     )
 }
 
+// Alias for SingleImageUpload
+export const SingleImageUpload = ImageUpload;
+
 // ─── Multi-Image Upload ───────────────────────────────────────────────────────
 
 interface MultiImageUploadProps {
