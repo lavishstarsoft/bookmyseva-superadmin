@@ -242,7 +242,7 @@ export default function PrasadamCategoriesPage() {
                                                 variant="ghost"
                                                 size="icon"
                                                 onClick={() => category._id && handleDelete(category._id, category.name)}
-                                                disabled={category.count && category.count > 0}
+                                                disabled={category.count > 0}
                                             >
                                                 <Trash2 className="w-4 h-4" />
                                             </Button>
