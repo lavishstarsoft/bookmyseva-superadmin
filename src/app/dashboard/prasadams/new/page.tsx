@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, Save, Loader2, Plus, X, Cookie } from "lucide-react";
+import { ChevronLeft, Save, Loader2, Plus, X, Cookie, Clock, CalendarDays, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { prasadamsApi, Prasadam, PricingTier, Category } from "@/api/prasadams";
+import { prasadamsApi, Prasadam, PricingTier, Category, PrasadamTimeSlot, PrasadamDeliveryConfig } from "@/api/prasadams";
 import { toast } from "sonner";
 import { MultiImageUpload } from "@/components/ui/image-upload";
 
@@ -22,6 +22,15 @@ const units = [
     { value: "kg", label: "Kilograms (kg)" },
     { value: "grams", label: "Grams" },
     { value: "packets", label: "Packets" },
+];
+
+// Delivery time slot suggestions
+const SLOT_SUGGESTIONS = [
+    { id: 'morning', label: '8 AM – 11 AM' },
+    { id: 'midday', label: '11 AM – 2 PM' },
+    { id: 'afternoon', label: '2 PM – 5 PM' },
+    { id: 'evening', label: '5 PM – 8 PM' },
+    { id: 'night', label: '6 PM – 9 PM' },
 ];
 
 export default function NewPrasadamPage() {
@@ -117,6 +126,18 @@ export default function NewPrasadamPage() {
     const [isActive, setIsActive] = useState(true);
     const [isFeatured, setIsFeatured] = useState(false);
 
+    // Delivery Schedule
+    const [deliveryConfig, setDeliveryConfig] = useState<PrasadamDeliveryConfig>({
+        timeSlots: [
+            { id: 'morning', label: '8 AM – 11 AM', active: true },
+            { id: 'midday', label: '11 AM – 2 PM', active: true },
+            { id: 'afternoon', label: '2 PM – 5 PM', active: true },
+        ],
+        leadDays: 1,
+        maxAdvanceDays: 7,
+        availableDays: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    });
+
     const addPricingTier = () => {
         if (!newTierMin || !newTierPrice) {
             toast.error("Min quantity and price are required for pricing tier");
@@ -146,6 +167,39 @@ export default function NewPrasadamPage() {
 
     const removeIngredient = (index: number) => {
         setIngredients(ingredients.filter((_, i) => i !== index));
+    };
+
+    // Delivery Schedule Functions
+    const addTimeSlot = (id: string, label: string) => {
+        if (deliveryConfig.timeSlots.some(s => s.label === label)) {
+            toast.error(`"${label}" slot already exists`);
+            return;
+        }
+        setDeliveryConfig(prev => ({
+            ...prev,
+            timeSlots: [...prev.timeSlots, { id: id + '-' + Date.now(), label, active: true }]
+        }));
+    };
+
+    const removeTimeSlot = (id: string) => {
+        setDeliveryConfig(prev => ({
+            ...prev,
+            timeSlots: prev.timeSlots.filter(s => s.id !== id)
+        }));
+    };
+
+    const toggleTimeSlot = (id: string) => {
+        setDeliveryConfig(prev => ({
+            ...prev,
+            timeSlots: prev.timeSlots.map(s => s.id === id ? { ...s, active: !s.active } : s)
+        }));
+    };
+
+    const updateSlotLabel = (id: string, label: string) => {
+        setDeliveryConfig(prev => ({
+            ...prev,
+            timeSlots: prev.timeSlots.map(s => s.id === id ? { ...s, label } : s)
+        }));
     };
 
     const handleSave = async () => {
@@ -205,6 +259,7 @@ export default function NewPrasadamPage() {
                 qualityAssured,
                 easyCancel: true,
             },
+            deliveryConfig,
             isActive,
             isFeatured,
             source: "admin",
@@ -387,6 +442,171 @@ export default function NewPrasadamPage() {
                             <div className="flex gap-2">
                                 <Input value={newIngredient} onChange={(e) => setNewIngredient(e.target.value)} placeholder="Add ingredient..." className="flex-1" onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addIngredient())} />
                                 <Button variant="outline" onClick={addIngredient}><Plus className="w-4 h-4" /></Button>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* Delivery Schedule */}
+                    <Card>
+                        <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-t-lg">
+                            <CardTitle className="text-lg flex items-center gap-2">
+                                <Clock className="w-5 h-5" />
+                                Delivery Schedule
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-6 space-y-5">
+                            {/* Quick Add Slots */}
+                            <div>
+                                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 block">
+                                    Quick Add Slots
+                                </Label>
+                                <div className="flex flex-wrap gap-1.5">
+                                    {SLOT_SUGGESTIONS.map(slot => (
+                                        <button
+                                            key={slot.id}
+                                            type="button"
+                                            onClick={() => addTimeSlot(slot.id, slot.label)}
+                                            className="text-xs font-semibold px-2.5 py-1 rounded-full border border-border hover:border-blue-400 hover:bg-blue-50 hover:text-blue-700 transition-all cursor-pointer"
+                                        >
+                                            + {slot.label}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Active Slots */}
+                            {deliveryConfig.timeSlots.length > 0 && (
+                                <div className="space-y-2">
+                                    <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest block">
+                                        Active Slots
+                                    </Label>
+                                    {deliveryConfig.timeSlots.map((slot) => (
+                                        <div
+                                            key={slot.id}
+                                            className={`flex items-center gap-2 p-2.5 rounded-lg border transition-all ${
+                                                slot.active
+                                                    ? 'border-l-[3px] border-l-blue-500 border-blue-200 bg-blue-50/50'
+                                                    : 'border-border bg-muted/20 opacity-50'
+                                            }`}
+                                        >
+                                            <Switch
+                                                checked={slot.active}
+                                                onCheckedChange={() => toggleTimeSlot(slot.id)}
+                                                className="data-[state=checked]:bg-blue-600 shrink-0 scale-90"
+                                            />
+                                            <Input
+                                                value={slot.label}
+                                                onChange={(e) => updateSlotLabel(slot.id, e.target.value)}
+                                                className="h-7 text-sm font-medium border-0 bg-transparent px-1 focus-visible:ring-0 focus-visible:ring-offset-0 flex-1"
+                                                placeholder="Slot label"
+                                            />
+                                            <button
+                                                type="button"
+                                                onClick={() => removeTimeSlot(slot.id)}
+                                                className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded p-1 transition-colors shrink-0"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Add Custom Slot */}
+                            <div className="flex gap-2">
+                                <Input
+                                    placeholder="e.g., 9 PM – 11 PM"
+                                    id="newSlotLabel"
+                                    className="h-9 flex-1"
+                                    onKeyPress={(e) => {
+                                        if (e.key === 'Enter') {
+                                            const input = e.target as HTMLInputElement;
+                                            if (input.value.trim()) {
+                                                addTimeSlot('custom-' + Date.now(), input.value.trim());
+                                                input.value = '';
+                                            }
+                                        }
+                                    }}
+                                />
+                                <button
+                                    type="button"
+                                    className="h-9 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm font-semibold flex items-center gap-1 transition-colors shrink-0"
+                                    onClick={() => {
+                                        const input = document.getElementById('newSlotLabel') as HTMLInputElement;
+                                        if (input?.value.trim()) {
+                                            addTimeSlot('custom-' + Date.now(), input.value.trim());
+                                            input.value = '';
+                                        }
+                                    }}
+                                >
+                                    <Plus className="w-3.5 h-3.5" /> Add
+                                </button>
+                            </div>
+
+                            <hr className="border-border" />
+
+                            {/* Booking Date Control */}
+                            <div>
+                                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5 block">
+                                    <CalendarDays className="w-3.5 h-3.5" /> Booking Date Control
+                                </Label>
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs font-medium text-muted-foreground">Start Date</Label>
+                                            <Input
+                                                type="date"
+                                                value={deliveryConfig.bookingStartDate || ''}
+                                                onChange={(e) => setDeliveryConfig(prev => ({ ...prev, bookingStartDate: e.target.value || undefined }))}
+                                                className="h-9"
+                                            />
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs font-medium text-muted-foreground">End Date <span className="text-xs text-muted-foreground/60">(optional)</span></Label>
+                                            <Input
+                                                type="date"
+                                                value={deliveryConfig.bookingEndDate || ''}
+                                                onChange={(e) => setDeliveryConfig(prev => ({ ...prev, bookingEndDate: e.target.value || undefined }))}
+                                                className="h-9"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <hr className="border-border" />
+
+                            {/* Lead Days & Max Advance Days */}
+                            <div>
+                                <Label className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5 block">
+                                    <CalendarDays className="w-3.5 h-3.5" /> Delivery Settings
+                                </Label>
+                                <div className="space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs font-medium text-muted-foreground">Lead Days</Label>
+                                            <Input
+                                                type="number"
+                                                min={0}
+                                                value={deliveryConfig.leadDays}
+                                                onChange={(e) => setDeliveryConfig(prev => ({ ...prev, leadDays: Number(e.target.value) || 0 }))}
+                                                className="h-9"
+                                            />
+                                            <p className="text-xs text-muted-foreground">Min days from today</p>
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            <Label className="text-xs font-medium text-muted-foreground">Max Advance Days</Label>
+                                            <Input
+                                                type="number"
+                                                min={1}
+                                                value={deliveryConfig.maxAdvanceDays}
+                                                onChange={(e) => setDeliveryConfig(prev => ({ ...prev, maxAdvanceDays: Number(e.target.value) || 7 }))}
+                                                className="h-9"
+                                            />
+                                            <p className="text-xs text-muted-foreground">How far ahead users can book</p>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>

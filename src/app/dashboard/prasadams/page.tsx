@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Search, Edit, Trash2, MoreVertical, Star, Loader2, CheckCircle, XCircle, Clock, Store, Percent, Eye, EyeOff, Cookie, Tag } from "lucide-react";
+import { Plus, Search, Edit, Trash2, MoreVertical, Star, Loader2, CheckCircle, XCircle, Clock, Store, Percent, Eye, EyeOff, Cookie, Tag, Truck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -196,6 +196,9 @@ export default function PrasadamsPage() {
                     <p className="text-muted-foreground mt-1 text-sm">Manage sacred prasadam offerings.</p>
                 </div>
                 <div className="flex gap-2">
+                    <Link href="/dashboard/prasadams/delivery-schedule">
+                        <Button variant="outline"><Truck className="w-4 h-4 mr-2" /> Delivery Schedule</Button>
+                    </Link>
                     <Link href="/dashboard/prasadams/categories">
                         <Button variant="outline"><Tag className="w-4 h-4 mr-2" /> Manage Categories</Button>
                     </Link>

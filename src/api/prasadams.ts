@@ -52,6 +52,8 @@ export interface PrasadamTimeSlot {
 
 export interface PrasadamDeliveryConfig {
     timeSlots: PrasadamTimeSlot[];
+    bookingStartDate?: string;
+    bookingEndDate?: string;
     leadDays: number;
     maxAdvanceDays: number;
     availableDays: string[];

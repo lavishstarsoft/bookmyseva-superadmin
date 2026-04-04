@@ -31,7 +31,8 @@ import {
     ShoppingCart,
     MapPin,
     Wallet,
-    Cookie
+    Cookie,
+    Truck
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
@@ -69,7 +70,8 @@ const routes = [
             {
                 label: "Prasadams",
                 href: "/dashboard/prasadams",
-                icon: Cookie
+                icon: Cookie,
+                color: "text-orange-500"
             }
         ]
     },
