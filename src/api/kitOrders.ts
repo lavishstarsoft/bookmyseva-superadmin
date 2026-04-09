@@ -68,6 +68,7 @@ export interface KitOrder {
     vendorPayout?: number;
     trackingId?: string;
     courierName?: string;
+    courierWebsite?: string;
     vendorDetails?: VendorDetails;
     createdAt: string;
     updatedAt: string;
@@ -103,7 +104,7 @@ export const kitOrdersApi = {
         const response = await api.get<KitOrder>(`kit-orders/${id}`);
         return response.data;
     },
-    updateStatus: async (id: string, data: { status?: KitOrderStatus; paymentStatus?: KitOrderPaymentStatus; notes?: string; trackingId?: string; courierName?: string }) => {
+    updateStatus: async (id: string, data: { status?: KitOrderStatus; paymentStatus?: KitOrderPaymentStatus; notes?: string; trackingId?: string; courierName?: string; courierWebsite?: string }) => {
         const response = await api.patch<{ success: boolean; order: KitOrder }>(`kit-orders/${id}/status`, data);
         return response.data;
     }

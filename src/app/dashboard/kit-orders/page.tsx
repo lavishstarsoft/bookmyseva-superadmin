@@ -5,7 +5,7 @@ import {
     Search, Loader2, ShoppingCart, Package, CheckCircle2,
     Truck, XCircle, Clock, ChevronLeft, ChevronRight,
     RefreshCw, Calendar, Phone, User, IndianRupee, Store, Percent,
-    Printer, PenLine
+    Printer, PenLine, ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -109,7 +109,7 @@ export default function KitOrdersPage() {
     // Tracking & Label State
     const [printingOrder, setPrintingOrder] = useState<KitOrder | null>(null);
     const [editingTrackingOrder, setEditingTrackingOrder] = useState<KitOrder | null>(null);
-    const [trackingDetails, setTrackingDetails] = useState({ trackingId: "", courierName: "" });
+    const [trackingDetails, setTrackingDetails] = useState({ trackingId: "", courierName: "", courierWebsite: "" });
     const [updatingTracking, setUpdatingTracking] = useState(false);
 
     const fetchOrders = useCallback(async () => {
@@ -158,8 +158,14 @@ export default function KitOrdersPage() {
         setEditingTrackingOrder(order);
         setTrackingDetails({
             trackingId: order.trackingId || "",
-            courierName: order.courierName || ""
+            courierName: order.courierName || "",
+            courierWebsite: order.courierWebsite || ""
         });
+    };
+
+    const normalizeWebsiteUrl = (url: string) => {
+        if (!url) return "";
+        return /^https?:\/\//i.test(url) ? url : `https://${url}`;
     };
 
     const handleUpdateTracking = async () => {
@@ -168,7 +174,8 @@ export default function KitOrdersPage() {
         try {
             await kitOrdersApi.updateStatus(editingTrackingOrder._id, {
                 trackingId: trackingDetails.trackingId,
-                courierName: trackingDetails.courierName
+                courierName: trackingDetails.courierName,
+                courierWebsite: normalizeWebsiteUrl(trackingDetails.courierWebsite)
             });
             toast.success("Tracking details updated successfully");
             setEditingTrackingOrder(null);
@@ -455,6 +462,16 @@ export default function KitOrdersPage() {
                                                             <div className="text-xs bg-muted/50 p-2 rounded border border-dashed">
                                                                 <div className="font-semibold text-gray-900">{order.courierName}</div>
                                                                 <div className="text-muted-foreground font-mono">{order.trackingId}</div>
+                                                                {order.courierWebsite && (
+                                                                    <a
+                                                                        href={normalizeWebsiteUrl(order.courierWebsite)}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="mt-1 inline-flex items-center gap-1 text-blue-600 hover:underline"
+                                                                    >
+                                                                        Track <ExternalLink className="w-3 h-3" />
+                                                                    </a>
+                                                                )}
                                                             </div>
                                                         ) : (
                                                             <span className="text-xs text-muted-foreground italic">No tracking info</span>
@@ -575,6 +592,15 @@ export default function KitOrdersPage() {
                                 placeholder="e.g. DTDC, BlueDart, Delhivery"
                                 value={trackingDetails.courierName}
                                 onChange={(e) => setTrackingDetails(prev => ({ ...prev, courierName: e.target.value }))}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="courier-website">Courier Tracking Website</Label>
+                            <Input
+                                id="courier-website"
+                                placeholder="e.g. https://www.delhivery.com/tracking"
+                                value={trackingDetails.courierWebsite}
+                                onChange={(e) => setTrackingDetails(prev => ({ ...prev, courierWebsite: e.target.value }))}
                             />
                         </div>
                     </div>

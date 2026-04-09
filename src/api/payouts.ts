@@ -25,8 +25,11 @@ export interface VendorPayoutSummary {
     pendingCount: number;
     paidAmount: number;
     paidCount: number;
+    paidWithdrawalAmount: number;
+    paidWithdrawalCount: number;
     pendingWithdrawalAmount: number;
     pendingWithdrawalCount: number;
+    availableForWithdrawal: number;
     totalEarnings: number;
 }
 
@@ -49,6 +52,29 @@ export interface WithdrawalRequest {
     processedBy?: string;
     transactionRef?: string;
     remarks?: string;
+    taxBreakdown?: {
+        tdsRate: number;
+        tdsAmount: number;
+        gstRate: number;
+        gstAmount: number;
+        otherDeductionLabel?: string;
+        otherDeductionAmount?: number;
+        grossAmount: number;
+        netPayableAmount: number;
+    };
+    statement?: {
+        statementId: string;
+        generatedAt?: string;
+        sentAt?: string;
+    };
+    auditTrail?: Array<{
+        action: string;
+        actorRole?: string;
+        actorName?: string;
+        remarks?: string;
+        transactionRef?: string;
+        createdAt: string;
+    }>;
 }
 
 export interface VendorPayout {
@@ -93,8 +119,8 @@ export const payoutsApi = {
     },
 
     // Approve withdrawal
-    approveWithdrawal: async (id: string, remarks?: string) => {
-        const res = await api.patch(`admin/payouts/withdrawals/${id}/approve`, { remarks });
+    approveWithdrawal: async (id: string, remarks?: string, tdsRate?: number, gstRate?: number) => {
+        const res = await api.patch(`admin/payouts/withdrawals/${id}/approve`, { remarks, tdsRate, gstRate });
         return res.data;
     },
 
@@ -104,9 +130,37 @@ export const payoutsApi = {
         return res.data;
     },
 
+    // Revert approved withdrawal back to pending
+    revertWithdrawalToPending: async (id: string, remarks?: string) => {
+        const res = await api.patch(`admin/payouts/withdrawals/${id}/revert-pending`, { remarks });
+        return res.data;
+    },
+
+    // Cancel approved withdrawal
+    cancelApprovedWithdrawal: async (id: string, remarks?: string) => {
+        const res = await api.patch(`admin/payouts/withdrawals/${id}/cancel`, { remarks });
+        return res.data;
+    },
+
     // Mark withdrawal as paid
-    markWithdrawalPaid: async (id: string, transactionRef: string, remarks?: string) => {
-        const res = await api.patch(`admin/payouts/withdrawals/${id}/pay`, { transactionRef, remarks });
+    markWithdrawalPaid: async (
+        id: string,
+        transactionRef: string,
+        remarks?: string,
+        otherDeductionAmount?: number,
+        otherDeductionLabel?: string
+    ) => {
+        const res = await api.patch(`admin/payouts/withdrawals/${id}/pay`, {
+            transactionRef,
+            remarks,
+            otherDeductionAmount,
+            otherDeductionLabel
+        });
+        return res.data;
+    },
+
+    sendStatementToVendor: async (id: string) => {
+        const res = await api.post(`admin/payouts/withdrawals/${id}/send-statement`);
         return res.data;
     },
 

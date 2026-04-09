@@ -51,8 +51,14 @@ export default function PayoutsPage() {
 
     // Modal state
     const [payModal, setPayModal] = useState<{ open: boolean; id: string; name: string; amount: number; type: string } | null>(null);
+    const [approveModal, setApproveModal] = useState<{ open: boolean; id: string; name: string; amount: number } | null>(null);
+    const [approveTdsRate, setApproveTdsRate] = useState("1");
+    const [approveGstRate, setApproveGstRate] = useState("18");
+    const [approveRemarks, setApproveRemarks] = useState("");
     const [transactionRef, setTransactionRef] = useState("");
     const [remarks, setRemarks] = useState("");
+    const [otherDeductionLabel, setOtherDeductionLabel] = useState("");
+    const [otherDeductionAmount, setOtherDeductionAmount] = useState("");
     const [processing, setProcessing] = useState(false);
 
     const fetchSummary = async () => {
@@ -118,11 +124,19 @@ export default function PayoutsPage() {
         }
         setProcessing(true);
         try {
-            await payoutsApi.markWithdrawalPaid(payModal.id, transactionRef, remarks);
+            await payoutsApi.markWithdrawalPaid(
+                payModal.id,
+                transactionRef,
+                remarks,
+                Number(otherDeductionAmount) || 0,
+                otherDeductionLabel
+            );
             toast.success("Withdrawal marked as paid");
             setPayModal(null);
             setTransactionRef("");
             setRemarks("");
+            setOtherDeductionLabel("");
+            setOtherDeductionAmount("");
             fetchWithdrawals();
             fetchSummary();
         } catch {
@@ -132,10 +146,20 @@ export default function PayoutsPage() {
         }
     };
 
-    const handleApproveWithdrawal = async (id: string) => {
+    const handleApproveWithdrawal = async () => {
+        if (!approveModal) return;
         try {
-            await payoutsApi.approveWithdrawal(id);
+            await payoutsApi.approveWithdrawal(
+                approveModal.id,
+                approveRemarks,
+                Number(approveTdsRate) || 0,
+                Number(approveGstRate) || 0
+            );
             toast.success("Withdrawal approved");
+            setApproveModal(null);
+            setApproveTdsRate("1");
+            setApproveGstRate("18");
+            setApproveRemarks("");
             fetchWithdrawals();
         } catch {
             toast.error("Failed to approve");
@@ -151,6 +175,38 @@ export default function PayoutsPage() {
             fetchWithdrawals();
         } catch {
             toast.error("Failed to reject");
+        }
+    };
+
+    const handleSendStatement = async (id: string) => {
+        try {
+            await payoutsApi.sendStatementToVendor(id);
+            toast.success("Statement sent to vendor");
+            fetchWithdrawals();
+        } catch {
+            toast.error("Failed to send statement");
+        }
+    };
+
+    const handleRevertToPending = async (id: string) => {
+        const reason = prompt("Move back to pending reason (optional):") || "";
+        try {
+            await payoutsApi.revertWithdrawalToPending(id, reason);
+            toast.success("Moved back to pending");
+            fetchWithdrawals();
+        } catch {
+            toast.error("Failed to move to pending");
+        }
+    };
+
+    const handleCancelApproved = async (id: string) => {
+        const reason = prompt("Cancel reason (optional):") || "";
+        try {
+            await payoutsApi.cancelApprovedWithdrawal(id, reason);
+            toast.success("Approved request cancelled");
+            fetchWithdrawals();
+        } catch {
+            toast.error("Failed to cancel approved request");
         }
     };
 
@@ -250,6 +306,7 @@ export default function PayoutsPage() {
                                             <TableHead className="font-bold text-xs uppercase">Total Earnings</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Pending</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Paid</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Available To Withdraw</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Bank Details</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Payout Flow</TableHead>
                                         </TableRow>
@@ -271,6 +328,12 @@ export default function PayoutsPage() {
                                                 <TableCell>
                                                     <div className="font-bold text-green-600">₹{vendor.paidAmount.toLocaleString()}</div>
                                                     <div className="text-xs text-muted-foreground">{vendor.paidCount} orders</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="font-bold text-blue-700">₹{(vendor.availableForWithdrawal || 0).toLocaleString()}</div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        Pending req: ₹{(vendor.pendingWithdrawalAmount || 0).toLocaleString()}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     {vendor.bankDetails?.accountNumber ? (
@@ -334,7 +397,8 @@ export default function PayoutsPage() {
                                             <TableHead className="font-bold text-xs uppercase">Amount</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Bank Details</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Requested</TableHead>
-                                            <TableHead className="font-bold text-xs uppercase">Status</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Status & Tax</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Audit Trail</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
@@ -372,12 +436,49 @@ export default function PayoutsPage() {
                                                     {req.transactionRef && (
                                                         <div className="text-xs text-muted-foreground mt-1">Ref: {req.transactionRef}</div>
                                                     )}
+                                                    {req.taxBreakdown && (
+                                                        <div className="text-[11px] text-muted-foreground mt-1 space-y-0.5">
+                                                            <div>TDS ({req.taxBreakdown.tdsRate}%): ₹{req.taxBreakdown.tdsAmount.toLocaleString()}</div>
+                                                            <div>GST ({req.taxBreakdown.gstRate}%): ₹{req.taxBreakdown.gstAmount.toLocaleString()}</div>
+                                                            {(req.taxBreakdown.otherDeductionAmount || 0) > 0 && (
+                                                                <div>
+                                                                    {req.taxBreakdown.otherDeductionLabel || "Other deduction"}: ₹{(req.taxBreakdown.otherDeductionAmount || 0).toLocaleString()}
+                                                                </div>
+                                                            )}
+                                                            <div className="font-semibold text-green-700">Net: ₹{req.taxBreakdown.netPayableAmount.toLocaleString()}</div>
+                                                        </div>
+                                                    )}
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="text-xs space-y-1 max-w-[220px]">
+                                                        {(req.auditTrail || []).slice(-2).reverse().map((a, idx) => (
+                                                            <div key={`${a.createdAt}-${idx}`} className="rounded border p-1.5 bg-muted/20">
+                                                                <div className="font-semibold capitalize">{a.action.replace("_", " ")}</div>
+                                                                <div className="text-muted-foreground">{a.actorName || a.actorRole || "System"} • {format(new Date(a.createdAt), "dd MMM, h:mm a")}</div>
+                                                            </div>
+                                                        ))}
+                                                        {!req.auditTrail?.length && <span className="text-muted-foreground">No logs</span>}
+                                                    </div>
                                                 </TableCell>
                                                 <TableCell>
                                                     <div className="flex gap-2">
                                                         {req.status === 'pending' && (
                                                             <>
-                                                                <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white" onClick={() => handleApproveWithdrawal(req._id)}>
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="bg-green-600 hover:bg-green-700 text-white"
+                                                                    onClick={() => {
+                                                                        setApproveModal({
+                                                                            open: true,
+                                                                            id: req._id,
+                                                                            name: req.vendorName,
+                                                                            amount: req.amount
+                                                                        });
+                                                                        setApproveTdsRate(String(req.taxBreakdown?.tdsRate ?? 1));
+                                                                        setApproveGstRate(String(req.taxBreakdown?.gstRate ?? 18));
+                                                                        setApproveRemarks(req.remarks || "");
+                                                                    }}
+                                                                >
                                                                     <CheckCircle2 className="w-3 h-3 mr-1" /> Approve
                                                                 </Button>
                                                                 <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleRejectWithdrawal(req._id)}>
@@ -386,18 +487,34 @@ export default function PayoutsPage() {
                                                             </>
                                                         )}
                                                         {req.status === 'approved' && (
-                                                            <Button
-                                                                size="sm"
-                                                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                                                onClick={() => setPayModal({
-                                                                    open: true,
-                                                                    id: req._id,
-                                                                    name: req.vendorName,
-                                                                    amount: req.amount,
-                                                                    type: 'withdrawal'
-                                                                })}
-                                                            >
-                                                                <CreditCard className="w-3 h-3 mr-1" /> Mark Paid
+                                                            <>
+                                                                <Button
+                                                                    size="sm"
+                                                                    className="bg-blue-600 hover:bg-blue-700 text-white"
+                                                                    onClick={() => setPayModal({
+                                                                        open: true,
+                                                                        id: req._id,
+                                                                        name: req.vendorName,
+                                                                        amount: req.amount,
+                                                                        type: 'withdrawal'
+                                                                    })}
+                                                                >
+                                                                    <CreditCard className="w-3 h-3 mr-1" /> Mark Paid
+                                                                </Button>
+                                                                <Button size="sm" variant="outline" onClick={() => handleSendStatement(req._id)}>
+                                                                    Send Statement
+                                                                </Button>
+                                                                <Button size="sm" variant="outline" onClick={() => handleRevertToPending(req._id)}>
+                                                                    Move Pending
+                                                                </Button>
+                                                                <Button size="sm" variant="outline" className="text-red-600" onClick={() => handleCancelApproved(req._id)}>
+                                                                    Cancel
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                        {req.status === 'paid' && (
+                                                            <Button size="sm" variant="outline" onClick={() => handleSendStatement(req._id)}>
+                                                                Resend Statement
                                                             </Button>
                                                         )}
                                                     </div>
@@ -425,8 +542,54 @@ export default function PayoutsPage() {
                 </div>
             )}
 
+            <Dialog open={!!approveModal} onOpenChange={() => {
+                setApproveModal(null);
+                setApproveTdsRate("1");
+                setApproveGstRate("18");
+                setApproveRemarks("");
+            }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Approve Withdrawal</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="bg-muted/30 rounded-lg p-3">
+                            <div className="text-sm text-muted-foreground">Vendor</div>
+                            <div className="font-semibold">{approveModal?.name}</div>
+                            <div className="text-sm mt-1">Requested: <span className="font-bold">₹{approveModal?.amount?.toLocaleString()}</span></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-sm font-medium mb-1 block">TDS %</label>
+                                <Input type="number" min={0} value={approveTdsRate} onChange={(e) => setApproveTdsRate(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium mb-1 block">GST %</label>
+                                <Input type="number" min={0} value={approveGstRate} onChange={(e) => setApproveGstRate(e.target.value)} />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="text-sm font-medium mb-1 block">Remarks (Optional)</label>
+                            <Input value={approveRemarks} onChange={(e) => setApproveRemarks(e.target.value)} placeholder="Approval note" />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setApproveModal(null)}>Cancel</Button>
+                        <Button className="bg-green-600 hover:bg-green-700 text-white" onClick={handleApproveWithdrawal}>
+                            Confirm Approve
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
             {/* Pay Modal */}
-            <Dialog open={!!payModal} onOpenChange={() => setPayModal(null)}>
+            <Dialog open={!!payModal} onOpenChange={() => {
+                setPayModal(null);
+                setTransactionRef("");
+                setRemarks("");
+                setOtherDeductionLabel("");
+                setOtherDeductionAmount("");
+            }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2">
@@ -449,14 +612,34 @@ export default function PayoutsPage() {
                             />
                         </div>
                         {payModal?.type === 'withdrawal' && (
-                            <div>
-                                <label className="text-sm font-medium mb-1 block">Remarks (Optional)</label>
-                                <Input
-                                    placeholder="Any additional notes"
-                                    value={remarks}
-                                    onChange={(e) => setRemarks(e.target.value)}
-                                />
-                            </div>
+                            <>
+                                <div>
+                                    <label className="text-sm font-medium mb-1 block">Extra Deduction Label (Optional)</label>
+                                    <Input
+                                        placeholder="e.g. Damaged items, packaging fee"
+                                        value={otherDeductionLabel}
+                                        onChange={(e) => setOtherDeductionLabel(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium mb-1 block">Extra Deduction Amount (Optional)</label>
+                                    <Input
+                                        type="number"
+                                        min={0}
+                                        placeholder="0"
+                                        value={otherDeductionAmount}
+                                        onChange={(e) => setOtherDeductionAmount(e.target.value)}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-sm font-medium mb-1 block">Remarks (Optional)</label>
+                                    <Input
+                                        placeholder="Any additional notes"
+                                        value={remarks}
+                                        onChange={(e) => setRemarks(e.target.value)}
+                                    />
+                                </div>
+                            </>
                         )}
                     </div>
                     <DialogFooter>

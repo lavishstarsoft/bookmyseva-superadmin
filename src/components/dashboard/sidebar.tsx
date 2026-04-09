@@ -82,6 +82,11 @@ const routes = [
         color: "text-emerald-600",
         submenu: [
             {
+                label: "All Orders",
+                href: "/dashboard/all-orders",
+                icon: ShoppingCart
+            },
+            {
                 label: "Kit Orders",
                 href: "/dashboard/kit-orders",
                 icon: ShoppingCart
