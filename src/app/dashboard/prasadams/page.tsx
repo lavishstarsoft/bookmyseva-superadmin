@@ -112,7 +112,7 @@ export default function PrasadamsPage() {
                 commissionType,
                 commissionValue: Number(commissionValue) || 0,
             });
-            toast.success("Prasadam approved successfully");
+            toast.success(approvePrasadam.vendorApproved ? "Commission updated successfully" : "Prasadam approved successfully");
             setApprovePrasadam(null);
             setCommissionValue("");
             fetchPrasadams();
@@ -458,6 +458,14 @@ export default function PrasadamsPage() {
                                                                         </DropdownMenuItem>
                                                                     </>
                                                                 )}
+                                                                {prasadam.source === "vendor" && prasadam.vendorApproved && (
+                                                                    <>
+                                                                        <DropdownMenuSeparator />
+                                                                        <DropdownMenuItem onClick={() => { setApprovePrasadam(prasadam); setCommissionType(prasadam.commissionType || "percentage"); setCommissionValue(String(prasadam.commissionValue || "")); }} className="text-amber-600 cursor-pointer focus:text-amber-600">
+                                                                            <Percent className="w-4 h-4 mr-2" /> Update Commission
+                                                                        </DropdownMenuItem>
+                                                                    </>
+                                                                )}
                                                                 <DropdownMenuSeparator />
                                                                 <DropdownMenuItem onClick={() => handleDelete(prasadam._id!)} className="text-red-600">
                                                                     <Trash2 className="w-4 h-4 mr-2" /> Delete
@@ -480,10 +488,22 @@ export default function PrasadamsPage() {
             <Dialog open={!!approvePrasadam} onOpenChange={() => setApprovePrasadam(null)}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>Approve Prasadam</DialogTitle>
-                        <DialogDescription>Set commission for "{approvePrasadam?.title}".</DialogDescription>
+                        <DialogTitle className="flex items-center gap-2">
+                            <CheckCircle className="w-5 h-5 text-green-600" />
+                            {approvePrasadam?.vendorApproved ? "Update Commission" : "Approve Prasadam"}
+                        </DialogTitle>
+                        <DialogDescription>
+                            {approvePrasadam?.vendorApproved
+                                ? `Update commission for "${approvePrasadam?.title}"`
+                                : `Set commission and approve "${approvePrasadam?.title}" by ${approvePrasadam?.vendorName}`}
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
+                        <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1 mb-4">
+                            <p><span className="font-medium">Prasadam:</span> {approvePrasadam?.title}</p>
+                            <p><span className="font-medium">Vendor:</span> {approvePrasadam?.vendorName}</p>
+                            <p><span className="font-medium">Price:</span> ₹{approvePrasadam?.basePrice || "N/A"}</p>
+                        </div>
                         <div className="flex gap-4">
                             <div className="flex-1">
                                 <label className="text-sm font-medium">Commission Type</label>
@@ -510,7 +530,7 @@ export default function PrasadamsPage() {
                         <Button variant="outline" onClick={() => setApprovePrasadam(null)}>Cancel</Button>
                         <Button onClick={handleApprove} disabled={approving} className="bg-green-600 hover:bg-green-700 text-white">
                             {approving ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <CheckCircle className="w-4 h-4 mr-2" />}
-                            Approve
+                            {approvePrasadam?.vendorApproved ? "Update" : "Approve"}
                         </Button>
                     </DialogFooter>
                 </DialogContent>
