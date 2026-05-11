@@ -1,8 +1,15 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
   /* config options here */
   basePath: '/superadmin',
+  // Fix: Force Turbopack to resolve tailwindcss from superadmin's own node_modules
+  turbopack: {
+    resolveAlias: {
+      tailwindcss: path.resolve(__dirname, 'node_modules/tailwindcss'),
+    },
+  },
   images: {
     remotePatterns: [
       {

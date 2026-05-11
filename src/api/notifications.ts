@@ -37,5 +37,9 @@ export const notificationsApi = {
     clearAll: async () => {
         const res = await api.delete("/admin/notifications/clear");
         return res.data;
+    },
+    sendBroadcast: async (data: { title: string; message: string; targetRole?: string }) => {
+        const res = await api.post("/admin/notifications/send-broadcast", data);
+        return res.data;
     }
 };

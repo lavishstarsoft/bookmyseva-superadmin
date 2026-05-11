@@ -19,13 +19,14 @@ export interface DeliveryZone {
     minOrderValue: number;
     freeDeliveryAbove?: number | null;
     estimatedDays: string;
+    category: 'product' | 'pujari';
     isActive: boolean;
     createdAt?: string;
     updatedAt?: string;
 }
 
 export const deliveryZonesApi = {
-    getAll: async (params?: { search?: string; status?: string }) => {
+    getAll: async (params?: { search?: string; status?: string; category?: string }) => {
         const response = await api.get<{ zones: DeliveryZone[] }>("delivery-zones", { params });
         return response.data;
     },

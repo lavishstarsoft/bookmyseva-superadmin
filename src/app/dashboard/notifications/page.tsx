@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Bell, CheckCheck, Loader2, RefreshCw, Trash2 } from "lucide-react";
+import { Bell, CheckCheck, Loader2, RefreshCw, Trash2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -11,6 +11,19 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ImageUpload } from "@/components/ui/image-upload";
 import { notificationsApi, AdminNotification } from "@/api/notifications";
 import { toast } from "sonner";
 
@@ -40,6 +53,30 @@ export default function NotificationsPage() {
     const [page, setPage] = useState(1);
     const [pages, setPages] = useState(1);
     const [unreadCount, setUnreadCount] = useState(0);
+
+    // Broadcast Dialog state
+    const [showBroadcastModal, setShowBroadcastModal] = useState(false);
+    const [broadcastData, setBroadcastData] = useState({ title: "", message: "", targetRole: "pujari", imageUrl: "" });
+    const [sending, setSending] = useState(false);
+
+    const handleSendBroadcast = async () => {
+        if (!broadcastData.title || !broadcastData.message) {
+            toast.error("Please fill in both title and message");
+            return;
+        }
+
+        setSending(true);
+        try {
+            await notificationsApi.sendBroadcast(broadcastData);
+            toast.success("Push notification broadcasted successfully!");
+            setShowBroadcastModal(false);
+            setBroadcastData({ title: "", message: "", targetRole: "pujari", imageUrl: "" });
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Failed to send broadcast");
+        } finally {
+            setSending(false);
+        }
+    };
 
     const fetchNotifications = useCallback(async () => {
         setLoading(true);
@@ -112,9 +149,96 @@ export default function NotificationsPage() {
                     <h1 className="text-2xl font-black flex items-center gap-2">
                         <Bell className="w-6 h-6 text-[#8D0303]" /> Notifications
                     </h1>
-                    <p className="text-sm text-muted-foreground mt-1">System events from orders, vendors, payouts, and enquiries.</p>
+                    <p className="text-sm text-muted-foreground mt-1">System events and custom broadcasts.</p>
                 </div>
                 <div className="flex items-center gap-2">
+                    {/* Compose Broadcast Button */}
+                    <Dialog open={showBroadcastModal} onOpenChange={setShowBroadcastModal}>
+                        <DialogTrigger asChild>
+                            <Button className="bg-[#8D0303] hover:bg-[#700202] text-white">
+                                <Send className="w-4 h-4 mr-1.5" /> Compose Broadcast
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[425px]">
+                            <DialogHeader>
+                                <DialogTitle>Send Push Notification</DialogTitle>
+                                <DialogDescription>
+                                    This will send a live push notification to all approved Pujaris.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="title">Notification Title</Label>
+                                    <Input
+                                        id="title"
+                                        placeholder="e.g. Happy Diwali! 🪔"
+                                        value={broadcastData.title}
+                                        onChange={(e) => setBroadcastData({ ...broadcastData, title: e.target.value })}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="message">Message Body</Label>
+                                    <Textarea
+                                        id="message"
+                                        placeholder="Type your message here..."
+                                        rows={4}
+                                        value={broadcastData.message}
+                                        onChange={(e) => setBroadcastData({ ...broadcastData, message: e.target.value })}
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Notification Image (Upload or URL)</Label>
+                                    <div className="flex flex-col gap-3">
+                                        <div className="h-32 border rounded-lg overflow-hidden">
+                                            <ImageUpload 
+                                                value={broadcastData.imageUrl}
+                                                onChange={(url) => setBroadcastData({ ...broadcastData, imageUrl: url })}
+                                            />
+                                        </div>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                                <span className="text-xs text-muted-foreground">URL:</span>
+                                            </div>
+                                            <Input 
+                                                placeholder="Or paste an external image URL here..." 
+                                                className="pl-12 text-xs"
+                                                value={broadcastData.imageUrl}
+                                                onChange={(e) => setBroadcastData({ ...broadcastData, imageUrl: e.target.value })}
+                                            />
+                                        </div>
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground italic">Recommended size: 1024x512. Supports PNG, JPG, WEBP.</p>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label>Target Audience</Label>
+                                    <Select 
+                                        value={broadcastData.targetRole} 
+                                        onValueChange={(v) => setBroadcastData({ ...broadcastData, targetRole: v })}
+                                    >
+                                        <SelectTrigger>
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="pujari">All Approved Pujaris</SelectItem>
+                                            <SelectItem value="user">All Registered Users (Customers)</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => setShowBroadcastModal(false)} disabled={sending}>Cancel</Button>
+                                <Button 
+                                    className="bg-[#8D0303] hover:bg-[#700202] text-white" 
+                                    onClick={handleSendBroadcast}
+                                    disabled={sending}
+                                >
+                                    {sending ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Send className="w-4 h-4 mr-1.5" />}
+                                    Send Notification
+                                </Button>
+                            </DialogFooter>
+                        </DialogContent>
+                    </Dialog>
+
                     <Badge className="bg-[#8D0303] text-white">Unread: {unreadCount}</Badge>
                     <Button variant="outline" size="sm" onClick={fetchNotifications}>
                         <RefreshCw className="w-4 h-4 mr-1.5" /> Refresh

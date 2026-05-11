@@ -36,7 +36,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { useState, useEffect } from "react";
 import { useSidebar } from "./sidebar-context";
 
@@ -122,10 +122,47 @@ const routes = [
         ]
     },
     {
-        label: "Pujaris",
+        label: "Puja Services",
         icon: Users,
-        href: "/dashboard/pujaris",
+        href: "#",
         color: "text-indigo-500",
+        submenu: [
+            {
+                label: "All Pujas",
+                href: "/dashboard/pujas",
+                icon: BookOpen
+            },
+            {
+                label: "Pujaris",
+                href: "/dashboard/pujaris",
+                icon: Users
+            },
+            {
+                label: "Registration Form",
+                href: "/dashboard/pujaris/registration-form",
+                icon: FileText
+            },
+            {
+                label: "Puja Bookings",
+                href: "/dashboard/puja-bookings",
+                icon: ShoppingCart
+            },
+            {
+                label: "Pujari App Settings",
+                href: "/dashboard/pujaris/settings",
+                icon: Settings
+            },
+            {
+                label: "BMS Coins",
+                href: "/dashboard/bms-coins",
+                icon: Star
+            },
+            {
+                label: "Pujari Delivery Zones",
+                href: "/dashboard/pujari-zones",
+                icon: MapPin
+            }
+        ]
     },
     {
         label: "Enquiries",
@@ -391,6 +428,12 @@ export function MobileSidebar() {
                 </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 bg-[#111827]">
+                <div className="sr-only">
+                    <SheetHeader>
+                        <SheetTitle>Navigation Menu</SheetTitle>
+                        <SheetDescription>Access dashboard navigation links</SheetDescription>
+                    </SheetHeader>
+                </div>
                 <Sidebar isMobile={true} onClose={() => setOpen(false)} />
             </SheetContent>
         </Sheet>
