@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Loader2, UserCheck, UserX, Users, Star, MapPin, Phone, Eye, Shield, Clock, MoreVertical, CheckCircle, XCircle, Ban, FileText } from "lucide-react";
+import { Search, Loader2, UserCheck, UserX, Users, Star, MapPin, Phone, Eye, Shield, Clock, MoreVertical, CheckCircle, XCircle, Ban, FileText, Trash2, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -63,6 +63,13 @@ export default function PujarisPage() {
     const [rejectPujari, setRejectPujari] = useState<Pujari | null>(null);
     const [rejectReason, setRejectReason] = useState("");
     const [rejecting, setRejecting] = useState(false);
+    
+    // Delete dialog
+    const [deletePujari, setDeletePujari] = useState<Pujari | null>(null);
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [deleting, setDeleting] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
+
     const [dynamicFields, setDynamicFields] = useState<any[]>([]);
     const [zones, setZones] = useState<any[]>([]);
     const [updatingZone, setUpdatingZone] = useState(false);
@@ -143,6 +150,25 @@ export default function PujarisPage() {
             fetchPujaris();
         } catch {
             toast.error("Failed to suspend");
+        }
+    };
+
+    const handleDelete = async () => {
+        if (!deletePujari) return;
+        setDeleting(true);
+        try {
+            await api.delete(`/pujari-auth/admin/${deletePujari._id}`, {
+                data: { password: confirmPassword }
+            });
+            toast.success("Pujari deleted successfully");
+            setDeletePujari(null);
+            setConfirmPassword("");
+            fetchPujaris();
+        } catch (err: any) {
+            const msg = err.response?.data?.message || "Failed to delete";
+            toast.error(msg);
+        } finally {
+            setDeleting(false);
         }
     };
  
@@ -417,6 +443,10 @@ export default function PujarisPage() {
                                                         </DropdownMenuItem>
                                                     </>
                                                 )}
+                                                <DropdownMenuSeparator />
+                                                <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600 font-semibold" onClick={() => setDeletePujari(pujari)}>
+                                                    <Trash2 className="w-4 h-4 mr-2" /> Delete Pujari
+                                                </DropdownMenuItem>
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>
@@ -583,6 +613,59 @@ export default function PujarisPage() {
                         <Button onClick={handleReject} disabled={rejecting} className="bg-red-600 hover:bg-red-700 text-white">
                             {rejecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <XCircle className="w-4 h-4 mr-2" />}
                             Reject
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Dialog */}
+            <Dialog open={!!deletePujari} onOpenChange={() => { setDeletePujari(null); setConfirmPassword(""); setShowPassword(false); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="w-5 h-5 text-red-600" />
+                            Delete Pujari
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to permanently delete &quot;{deletePujari?.name}&quot;? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold">Secret Admin Password</label>
+                            <div className="relative">
+                                <Input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Enter secret password to delete"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gray-700"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setDeletePujari(null); setConfirmPassword(""); setShowPassword(false); }} disabled={deleting}>
+                            Cancel
+                        </Button>
+                        <Button 
+                            onClick={handleDelete} 
+                            disabled={deleting || !confirmPassword} 
+                            className="bg-red-600 hover:bg-red-700 text-white"
+                        >
+                            {deleting ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            ) : (
+                                <Trash2 className="w-4 h-4 mr-2" />
+                            )}
+                            Permanently Delete
                         </Button>
                     </DialogFooter>
                 </DialogContent>
