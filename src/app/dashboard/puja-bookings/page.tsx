@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Loader2, Calendar, Clock, MapPin, Phone, Eye, MoreVertical, IndianRupee, UserCheck, Star, Filter, ShoppingCart, ArrowRight, Trash2 } from "lucide-react";
+import { Search, Loader2, Calendar, Clock, MapPin, Phone, Eye, EyeOff, MoreVertical, IndianRupee, UserCheck, Star, Filter, ShoppingCart, ArrowRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,7 +60,9 @@ export default function PujaBookingsPage() {
     
     // Delete
     const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
+    const [confirmPassword, setConfirmPassword] = useState("");
     const [deleting, setDeleting] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const fetchBookings = async () => {
         try {
@@ -106,12 +108,16 @@ export default function PujaBookingsPage() {
         if (!deleteBookingId) return;
         setDeleting(true);
         try {
-            await api.delete(`/puja-bookings/admin/${deleteBookingId}`);
+            await api.delete(`/puja-bookings/admin/${deleteBookingId}`, {
+                data: { password: confirmPassword }
+            });
             toast.success("Booking deleted successfully");
             setDeleteBookingId(null);
+            setConfirmPassword("");
             fetchBookings();
-        } catch {
-            toast.error("Failed to delete booking");
+        } catch (err: any) {
+            const msg = err.response?.data?.message || "Failed to delete booking";
+            toast.error(msg);
         } finally {
             setDeleting(false);
         }
@@ -386,7 +392,7 @@ export default function PujaBookingsPage() {
                 </DialogContent>
             </Dialog>
             {/* Delete Confirmation Dialog */}
-            <Dialog open={!!deleteBookingId} onOpenChange={() => setDeleteBookingId(null)}>
+            <Dialog open={!!deleteBookingId} onOpenChange={() => { setDeleteBookingId(null); setConfirmPassword(""); setShowPassword(false); }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-red-600">
@@ -394,14 +400,39 @@ export default function PujaBookingsPage() {
                             Delete Booking
                         </DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to delete this booking? This action cannot be undone.
+                            Are you sure you want to permanently delete this booking? This action cannot be undone.
                         </DialogDescription>
                     </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold">Secret Admin Password</label>
+                            <div className="relative">
+                                <Input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Enter secret password to delete"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gray-700"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setDeleteBookingId(null)} disabled={deleting}>Cancel</Button>
-                        <Button onClick={handleDeleteBooking} disabled={deleting} variant="destructive">
+                        <Button variant="outline" onClick={() => { setDeleteBookingId(null); setConfirmPassword(""); setShowPassword(false); }} disabled={deleting}>Cancel</Button>
+                        <Button 
+                            onClick={handleDeleteBooking} 
+                            disabled={deleting || !confirmPassword} 
+                            variant="destructive"
+                        >
                             {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
-                            Delete
+                            Permanently Delete
                         </Button>
                     </DialogFooter>
                 </DialogContent>
