@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ExternalLink, Loader2, PencilLine, RefreshCw, Search, ShoppingCart } from "lucide-react";
+import { ExternalLink, Loader2, PencilLine, RefreshCw, Search, ShoppingCart, Trash2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -59,6 +59,13 @@ export default function AllOrdersPage() {
   const [editingOrder, setEditingOrder] = useState<UnifiedOrder | null>(null);
   const [trackingData, setTrackingData] = useState({ trackingId: "", courierName: "", courierWebsite: "" });
   const [savingTracking, setSavingTracking] = useState(false);
+
+  // Delete
+  const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
+  const [deleteOrderType, setDeleteOrderType] = useState<"kit" | "prasadam" | null>(null);
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const fetchAllOrders = async () => {
     setLoading(true);
@@ -152,6 +159,28 @@ export default function AllOrdersPage() {
       toast.error("Failed to update tracking details");
     } finally {
       setSavingTracking(false);
+    }
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!deleteOrderId || !deleteOrderType) return;
+    setDeleting(true);
+    try {
+      if (deleteOrderType === "kit") {
+        await kitOrdersApi.delete(deleteOrderId, confirmPassword);
+      } else {
+        await prasadamOrdersApi.delete(deleteOrderId, confirmPassword);
+      }
+      toast.success("Order deleted successfully");
+      setDeleteOrderId(null);
+      setDeleteOrderType(null);
+      setConfirmPassword("");
+      fetchAllOrders();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Failed to delete order";
+      toast.error(msg);
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -275,9 +304,14 @@ export default function AllOrdersPage() {
                       {order.createdAt ? format(new Date(order.createdAt), "dd MMM yyyy, h:mm a") : "-"}
                     </TableCell>
                     <TableCell>
-                      <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => openTrackingDialog(order)}>
-                        <PencilLine className="w-3.5 h-3.5" /> Tracking
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="outline" className="h-8 gap-1" onClick={() => openTrackingDialog(order)}>
+                          <PencilLine className="w-3.5 h-3.5" /> Tracking
+                        </Button>
+                        <Button size="sm" variant="outline" className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => { setDeleteOrderId(order._id); setDeleteOrderType(order.type); }}>
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -325,6 +359,51 @@ export default function AllOrdersPage() {
             <Button variant="outline" onClick={() => setEditingOrder(null)}>Cancel</Button>
             <Button onClick={handleSaveTracking} disabled={savingTracking} className="bg-[#8D0303] hover:bg-[#700202] text-white">
               {savingTracking ? "Saving..." : "Save"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteOrderId} onOpenChange={() => { setDeleteOrderId(null); setDeleteOrderType(null); setConfirmPassword(""); setShowPassword(false); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-600">
+              <Trash2 className="w-5 h-5" />
+              Delete Order
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground">Are you sure you want to permanently delete this order? This action cannot be undone.</p>
+            <div className="space-y-2">
+              <Label>Secret Admin Password</Label>
+              <div className="relative">
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter secret password to delete"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gray-700"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeleteOrderId(null); setDeleteOrderType(null); setConfirmPassword(""); setShowPassword(false); }} disabled={deleting}>Cancel</Button>
+            <Button 
+              onClick={handleDeleteOrder} 
+              disabled={deleting || !confirmPassword} 
+              variant="destructive"
+            >
+              {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              Permanently Delete
             </Button>
           </DialogFooter>
         </DialogContent>

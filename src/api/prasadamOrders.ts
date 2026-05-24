@@ -64,5 +64,11 @@ export const prasadamOrdersApi = {
     const response = await api.patch<{ success: boolean; order: PrasadamOrder }>(`prasadam-orders/${id}/status`, data);
     return response.data;
   },
+  delete: async (id: string, password?: string) => {
+    const response = await api.delete<{ success: boolean; message: string }>(`prasadam-orders/${id}`, {
+      data: { password }
+    });
+    return response.data;
+  },
 };
 

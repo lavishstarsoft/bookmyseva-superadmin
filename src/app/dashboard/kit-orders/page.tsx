@@ -5,7 +5,7 @@ import {
     Search, Loader2, ShoppingCart, Package, CheckCircle2,
     Truck, XCircle, Clock, ChevronLeft, ChevronRight,
     RefreshCw, Calendar, Phone, User, IndianRupee, Store, Percent,
-    Printer, PenLine, ExternalLink
+    Printer, PenLine, ExternalLink, Trash2, Eye, EyeOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -106,11 +106,16 @@ export default function KitOrdersPage() {
     const [totalPages, setTotalPages] = useState(1);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-    // Tracking & Label State
     const [printingOrder, setPrintingOrder] = useState<KitOrder | null>(null);
     const [editingTrackingOrder, setEditingTrackingOrder] = useState<KitOrder | null>(null);
     const [trackingDetails, setTrackingDetails] = useState({ trackingId: "", courierName: "", courierWebsite: "" });
     const [updatingTracking, setUpdatingTracking] = useState(false);
+
+    // Delete
+    const [deleteOrderId, setDeleteOrderId] = useState<string | null>(null);
+    const [confirmPassword, setConfirmPassword] = useState("");
+    const [deleting, setDeleting] = useState(false);
+    const [showPassword, setShowPassword] = useState(false);
 
     const fetchOrders = useCallback(async () => {
         setLoading(true);
@@ -184,6 +189,23 @@ export default function KitOrdersPage() {
             toast.error("Failed to update tracking details");
         } finally {
             setUpdatingTracking(false);
+        }
+    };
+
+    const handleDeleteOrder = async () => {
+        if (!deleteOrderId) return;
+        setDeleting(true);
+        try {
+            await kitOrdersApi.delete(deleteOrderId, confirmPassword);
+            toast.success("Order deleted successfully");
+            setDeleteOrderId(null);
+            setConfirmPassword("");
+            fetchOrders();
+        } catch (err: any) {
+            const msg = err.response?.data?.message || "Failed to delete order";
+            toast.error(msg);
+        } finally {
+            setDeleting(false);
         }
     };
 
@@ -496,6 +518,15 @@ export default function KitOrdersPage() {
                                                             >
                                                                 <Printer className="w-3.5 h-3.5" />
                                                             </Button>
+                                                            <Button
+                                                                variant="outline"
+                                                                size="sm"
+                                                                className="h-7 w-7 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                onClick={() => setDeleteOrderId(order._id)}
+                                                                title="Delete Order"
+                                                            >
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            </Button>
                                                         </div>
                                                     </div>
                                                 )}
@@ -619,6 +650,51 @@ export default function KitOrdersPage() {
                             ) : (
                                 "Save Details"
                             )}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog open={!!deleteOrderId} onOpenChange={() => { setDeleteOrderId(null); setConfirmPassword(""); setShowPassword(false); }}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="w-5 h-5" />
+                            Delete Order
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <p className="text-sm text-muted-foreground">Are you sure you want to permanently delete this order? This action cannot be undone.</p>
+                        <div className="space-y-2">
+                            <Label>Secret Admin Password</Label>
+                            <div className="relative">
+                                <Input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Enter secret password to delete"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gray-700"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => { setDeleteOrderId(null); setConfirmPassword(""); setShowPassword(false); }} disabled={deleting}>Cancel</Button>
+                        <Button 
+                            onClick={handleDeleteOrder} 
+                            disabled={deleting || !confirmPassword} 
+                            variant="destructive"
+                        >
+                            {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                            Permanently Delete
                         </Button>
                     </DialogFooter>
                 </DialogContent>

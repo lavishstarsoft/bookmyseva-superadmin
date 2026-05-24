@@ -107,5 +107,11 @@ export const kitOrdersApi = {
     updateStatus: async (id: string, data: { status?: KitOrderStatus; paymentStatus?: KitOrderPaymentStatus; notes?: string; trackingId?: string; courierName?: string; courierWebsite?: string }) => {
         const response = await api.patch<{ success: boolean; order: KitOrder }>(`kit-orders/${id}/status`, data);
         return response.data;
+    },
+    delete: async (id: string, password?: string) => {
+        const response = await api.delete<{ success: boolean; message: string }>(`kit-orders/${id}`, {
+            data: { password }
+        });
+        return response.data;
     }
 };

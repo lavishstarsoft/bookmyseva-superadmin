@@ -38,6 +38,7 @@ interface PujaBooking {
     paymentStatus: string;
     bmsCoins: { used: number; earned: number };
     pujariWorkflow: any;
+    locationHistory?: { latitude: number; longitude: number; timestamp: string }[];
     feedback: { rating: number; review: string } | null;
     createdAt: string;
 }
@@ -350,6 +351,55 @@ export default function PujaBookingsPage() {
                                 {viewBooking.bmsCoins?.used > 0 && <div className="flex justify-between"><span>BMS Coins Used</span><span className="font-medium text-amber-600">{viewBooking.bmsCoins.used}</span></div>}
                                 {viewBooking.bmsCoins?.earned > 0 && <div className="flex justify-between"><span>Coins Earned</span><span className="font-medium text-green-600">+{viewBooking.bmsCoins.earned}</span></div>}
                             </div>
+                            
+                            {/* Pujari Workflow / Tracking UI */}
+                            {viewBooking.pujariWorkflow && (
+                                <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 text-sm mt-4">
+                                    <div className="font-bold text-slate-800 mb-2">Pujari Tracking & Selfies</div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-1">
+                                            <div className="text-xs font-semibold text-slate-500">Journey Started At</div>
+                                            <div>{viewBooking.pujariWorkflow.journeyStartedAt ? new Date(viewBooking.pujariWorkflow.journeyStartedAt).toLocaleString() : 'Not started'}</div>
+                                            {viewBooking.pujariWorkflow.journeyStartSelfie && (
+                                                <div className="mt-2 h-32 w-full rounded-md overflow-hidden border border-slate-300">
+                                                    <img src={viewBooking.pujariWorkflow.journeyStartSelfie} alt="Start Selfie" className="w-full h-full object-cover hover:object-contain transition-all bg-black/5" />
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="text-xs font-semibold text-slate-500">Completed At</div>
+                                            <div>{viewBooking.pujariWorkflow.completedAt ? new Date(viewBooking.pujariWorkflow.completedAt).toLocaleString() : 'Not completed'}</div>
+                                            {viewBooking.pujariWorkflow.completionSelfie && (
+                                                <div className="mt-2 h-32 w-full rounded-md overflow-hidden border border-slate-300">
+                                                    <img src={viewBooking.pujariWorkflow.completionSelfie} alt="Completion Selfie" className="w-full h-full object-cover hover:object-contain transition-all bg-black/5" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="mt-3 text-xs flex flex-col gap-2 border-t border-slate-200 pt-2">
+                                        {viewBooking.pujariWorkflow.arrivedAt && (
+                                            <div className="flex justify-between">
+                                                <span className="text-slate-500">Arrived At:</span>
+                                                <span className="font-medium text-slate-700">{new Date(viewBooking.pujariWorkflow.arrivedAt).toLocaleString()}</span>
+                                            </div>
+                                        )}
+                                        {viewBooking.locationHistory && viewBooking.locationHistory.length > 0 && (
+                                            <div className="flex justify-between items-center bg-blue-50 p-2 rounded border border-blue-100 mt-2">
+                                                <span className="text-blue-700 font-medium">Live Tracking:</span>
+                                                <a 
+                                                    href={`https://www.google.com/maps/search/?api=1&query=${viewBooking.locationHistory[viewBooking.locationHistory.length - 1].latitude},${viewBooking.locationHistory[viewBooking.locationHistory.length - 1].longitude}`}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                    className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 flex items-center gap-1"
+                                                >
+                                                    <MapPin className="w-3 h-3" /> View on Google Maps
+                                                </a>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {viewBooking.feedback?.rating && (
                                 <div className="bg-amber-50 p-3 rounded-lg text-sm">
                                     <div className="font-bold text-amber-800 flex items-center gap-1"><Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" /> {viewBooking.feedback.rating}/5</div>
