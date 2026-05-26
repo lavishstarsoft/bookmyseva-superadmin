@@ -35,7 +35,9 @@ export interface VendorPayoutSummary {
 
 export interface WithdrawalRequest {
     _id: string;
-    vendorId: string;
+    vendorId?: string;
+    pujariId?: string;
+    isPujari?: boolean;
     vendorName: string;
     vendorEmail: string;
     vendorPhone: string;

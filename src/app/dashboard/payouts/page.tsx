@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import {
     Search, Loader2, Wallet, IndianRupee, Store, Clock,
     CheckCircle2, XCircle, ChevronLeft, ChevronRight,
-    RefreshCw, CreditCard, Building2, AlertCircle, Percent
+    RefreshCw, CreditCard, Building2, AlertCircle, Percent, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { payoutsApi, PayoutSummary, VendorPayoutSummary, WithdrawalRequest } from "@/api/payouts";
+import api from "@/lib/axios";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -48,6 +49,55 @@ export default function PayoutsPage() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+
+    const [pujaris, setPujaris] = useState<any[]>([]);
+    const [pujariMinWithdrawal, setPujariMinWithdrawal] = useState(500);
+    const [pujariMaxWithdrawal, setPujariMaxWithdrawal] = useState(10000);
+    const [savingSettings, setSavingSettings] = useState(false);
+
+    const fetchPujaris = async () => {
+        setLoading(true);
+        try {
+            const response = await api.get("/pujari-auth/admin/all");
+            if (response.data.success) {
+                setPujaris(response.data.pujaris || []);
+            }
+        } catch {
+            toast.error("Failed to load Pujaris");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const fetchLimits = async () => {
+        setLoading(true);
+        try {
+            const response = await api.get("/app-config");
+            if (response.data) {
+                setPujariMinWithdrawal(response.data.pujariMinWithdrawal ?? 500);
+                setPujariMaxWithdrawal(response.data.pujariMaxWithdrawal ?? 10000);
+            }
+        } catch {
+            toast.error("Failed to load withdrawal limits");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveSettings = async () => {
+        setSavingSettings(true);
+        try {
+            await api.post("/app-config", {
+                pujariMinWithdrawal: Number(pujariMinWithdrawal),
+                pujariMaxWithdrawal: Number(pujariMaxWithdrawal)
+            });
+            toast.success("Withdrawal limits updated successfully");
+        } catch {
+            toast.error("Failed to save settings");
+        } finally {
+            setSavingSettings(false);
+        }
+    };
 
     // Modal state
     const [payModal, setPayModal] = useState<{ open: boolean; id: string; name: string; amount: number; type: string } | null>(null);
@@ -108,8 +158,12 @@ export default function PayoutsPage() {
     useEffect(() => {
         if (activeTab === "vendors") {
             fetchVendors();
-        } else {
+        } else if (activeTab === "withdrawals") {
             fetchWithdrawals();
+        } else if (activeTab === "pujaris") {
+            fetchPujaris();
+        } else if (activeTab === "settings") {
+            fetchLimits();
         }
     }, [activeTab, fetchVendors, fetchWithdrawals]);
 
@@ -265,12 +319,14 @@ export default function PayoutsPage() {
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList>
                     <TabsTrigger value="vendors">Vendor Summary</TabsTrigger>
+                    <TabsTrigger value="pujaris">Pujari Summary</TabsTrigger>
                     <TabsTrigger value="withdrawals">
                         Withdrawal Requests
                         {withdrawalStats.pending > 0 && (
                             <Badge className="ml-2 bg-amber-500 text-white">{withdrawalStats.pending}</Badge>
                         )}
                     </TabsTrigger>
+                    <TabsTrigger value="settings">Withdrawal Settings</TabsTrigger>
                 </TabsList>
 
                 {/* Vendors Tab */}
@@ -406,7 +462,14 @@ export default function PayoutsPage() {
                                         {withdrawals.map((req) => (
                                             <TableRow key={req._id}>
                                                 <TableCell>
-                                                    <div className="font-semibold">{req.vendorName}</div>
+                                                    <div className="font-semibold flex items-center gap-1.5">
+                                                        {req.vendorName}
+                                                        {req.isPujari ? (
+                                                            <Badge className="bg-purple-100 text-purple-800 text-[10px] font-semibold hover:bg-purple-100 py-0.5 px-1.5">Pujari</Badge>
+                                                        ) : (
+                                                            <Badge className="bg-orange-100 text-orange-800 text-[10px] font-semibold hover:bg-orange-100 py-0.5 px-1.5">Vendor</Badge>
+                                                        )}
+                                                    </div>
                                                     <div className="text-xs text-muted-foreground">{req.vendorEmail}</div>
                                                 </TableCell>
                                                 <TableCell>
@@ -525,6 +588,120 @@ export default function PayoutsPage() {
                                 </Table>
                             </div>
                         )}
+                    </div>
+                </TabsContent>
+
+                {/* Pujaris Tab */}
+                <TabsContent value="pujaris" className="space-y-4">
+                    <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
+                        {loading ? (
+                            <div className="flex items-center justify-center py-24">
+                                <Loader2 className="w-8 h-8 animate-spin text-[#8D0303]" />
+                            </div>
+                        ) : pujaris.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center py-24 text-center">
+                                <Store className="w-12 h-12 text-muted-foreground mb-4" />
+                                <h3 className="font-bold text-lg">No Pujaris found</h3>
+                            </div>
+                        ) : (
+                            <div className="overflow-x-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/30">
+                                            <TableHead className="font-bold text-xs uppercase">Pujari</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Total Earnings</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Pending (Available)</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Transferred</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Bank Details</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {pujaris.map((pujari) => (
+                                            <TableRow key={pujari._id}>
+                                                <TableCell>
+                                                    <div className="font-semibold">{pujari.name}</div>
+                                                    <div className="text-xs text-muted-foreground">{pujari.phone}</div>
+                                                    <div className="text-xs text-muted-foreground">{pujari.email || 'No email'}</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="font-bold text-lg">₹{(pujari.earnings?.total || 0).toLocaleString()}</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="font-bold text-amber-600">₹{(pujari.earnings?.pending || 0).toLocaleString()}</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <div className="font-bold text-green-600">₹{(pujari.earnings?.transferred || 0).toLocaleString()}</div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    {pujari.bankDetails?.accountNumber ? (
+                                                        <div className="text-xs">
+                                                            <div className="font-semibold">{pujari.bankDetails.bankName}</div>
+                                                            <div className="text-muted-foreground">A/C Holder: {pujari.bankDetails.accountHolderName}</div>
+                                                            <div className="text-muted-foreground">A/C No: {pujari.bankDetails.accountNumber}</div>
+                                                            <div className="text-muted-foreground">IFSC: {pujari.bankDetails.ifscCode}</div>
+                                                            {pujari.bankDetails.upiId ? (
+                                                                <div className="text-[#8D0303] font-semibold mt-0.5">UPI: {pujari.bankDetails.upiId}</div>
+                                                            ) : null}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-red-500 flex items-center gap-1 font-semibold">
+                                                            <AlertCircle className="w-3.5 h-3.5" /> Not set
+                                                        </span>
+                                                    )}
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        )}
+                    </div>
+                </TabsContent>
+
+                {/* Settings Tab */}
+                <TabsContent value="settings" className="space-y-4">
+                    <div className="bg-white rounded-xl border p-6 shadow-sm max-w-xl">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            <Settings className="w-5 h-5 text-[#8D0303]" />
+                            Pujari Withdrawal Limits Config
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-sm font-medium mb-1 block">Minimum Withdrawal Limit (₹)</label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="500"
+                                    value={pujariMinWithdrawal}
+                                    onChange={(e) => setPujariMinWithdrawal(Number(e.target.value))}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Pujaris cannot withdraw amounts smaller than this value.</p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium mb-1 block">Maximum Withdrawal Limit (₹)</label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="10000"
+                                    value={pujariMaxWithdrawal}
+                                    onChange={(e) => setPujariMaxWithdrawal(Number(e.target.value))}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Pujaris cannot request single withdrawals larger than this value.</p>
+                            </div>
+                            <Button
+                                className="bg-[#8D0303] hover:bg-[#720202] text-white font-bold w-full"
+                                onClick={handleSaveSettings}
+                                disabled={savingSettings}
+                            >
+                                {savingSettings ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...
+                                    </>
+                                ) : (
+                                    "Save Withdrawal Limits"
+                                )}
+                            </Button>
+                        </div>
                     </div>
                 </TabsContent>
             </Tabs>

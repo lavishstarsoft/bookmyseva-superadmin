@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, Loader2, Calendar, Clock, MapPin, Phone, Eye, EyeOff, MoreVertical, IndianRupee, UserCheck, Star, Filter, ShoppingCart, ArrowRight, Trash2 } from "lucide-react";
+import { Search, Loader2, Calendar, Clock, MapPin, Phone, Eye, EyeOff, MoreVertical, IndianRupee, UserCheck, Star, Filter, ShoppingCart, ArrowRight, Trash2, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -30,6 +30,7 @@ interface PujaBooking {
     version: { id: string; title: string; price: number; method: string };
     scheduledDate: string;
     scheduledTimeSlot: string;
+    actionEnableHoursBefore?: number;
     address: { line1: string; city: string; state: string; pincode: string };
     pricing: { totalAmount: number; finalAmount: number; priceIncrement: number };
     payment: { mode: string; totalPaid: number; advancePaid: boolean; remainingPaid: boolean };
@@ -59,11 +60,37 @@ export default function PujaBookingsPage() {
     const [pujariIdInput, setPujariIdInput] = useState("");
     const [assigning, setAssigning] = useState(false);
     
+    // Edit Booking
+    const [editBooking, setEditBooking] = useState<PujaBooking | null>(null);
+    const [editScheduledDate, setEditScheduledDate] = useState("");
+    const [editScheduledTimeSlot, setEditScheduledTimeSlot] = useState("");
+    const [editActionHours, setEditActionHours] = useState(6);
+    const [editing, setEditing] = useState(false);
+
     // Delete
     const [deleteBookingId, setDeleteBookingId] = useState<string | null>(null);
     const [confirmPassword, setConfirmPassword] = useState("");
     const [deleting, setDeleting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+
+    const handleEditSubmit = async () => {
+        if (!editBooking) return;
+        setEditing(true);
+        try {
+            await api.put(`/puja-bookings/admin/${editBooking._id}`, {
+                scheduledDate: editScheduledDate,
+                scheduledTimeSlot: editScheduledTimeSlot,
+                actionEnableHoursBefore: Number(editActionHours)
+            });
+            toast.success("Booking updated successfully");
+            setEditBooking(null);
+            fetchBookings();
+        } catch (err: any) {
+            toast.error(err.response?.data?.message || "Failed to update booking");
+        } finally {
+            setEditing(false);
+        }
+    };
 
     const fetchBookings = async () => {
         try {
@@ -293,6 +320,18 @@ export default function PujaBookingsPage() {
                                                     </>
                                                 )}
                                                 <DropdownMenuSeparator />
+                                                <DropdownMenuItem 
+                                                    className="cursor-pointer" 
+                                                    onClick={() => {
+                                                        setEditBooking(booking);
+                                                        setEditScheduledDate(booking.scheduledDate.split('T')[0]);
+                                                        setEditScheduledTimeSlot(booking.scheduledTimeSlot);
+                                                        setEditActionHours(booking.actionEnableHoursBefore ?? 6);
+                                                    }}
+                                                >
+                                                    <Edit className="w-4 h-4 mr-2" /> Edit Booking
+                                                </DropdownMenuItem>
+                                                <DropdownMenuSeparator />
                                                 <DropdownMenuItem className="cursor-pointer text-red-600 focus:text-red-600" onClick={() => setDeleteBookingId(booking._id)}>
                                                     <Trash2 className="w-4 h-4 mr-2" /> Delete Booking
                                                 </DropdownMenuItem>
@@ -437,6 +476,53 @@ export default function PujaBookingsPage() {
                         <Button onClick={handleManualAssign} disabled={assigning} className="bg-indigo-600 hover:bg-indigo-700 text-white">
                             {assigning ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <UserCheck className="w-4 h-4 mr-2" />}
                             Assign Pujari
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+            {/* Edit Booking Dialog */}
+            <Dialog open={!!editBooking} onOpenChange={() => setEditBooking(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                            <Edit className="w-5 h-5 text-indigo-600" />
+                            Edit Booking Details
+                        </DialogTitle>
+                        <DialogDescription>Modify scheduled date, time, and action visibility rules.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold">Scheduled Date</label>
+                            <Input 
+                                type="date" 
+                                value={editScheduledDate} 
+                                onChange={(e) => setEditScheduledDate(e.target.value)} 
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold">Scheduled Time Slot</label>
+                            <Input 
+                                placeholder="e.g. 09:00 AM - 10:00 AM" 
+                                value={editScheduledTimeSlot} 
+                                onChange={(e) => setEditScheduledTimeSlot(e.target.value)} 
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold">Actions Enable (Hours Before)</label>
+                            <p className="text-xs text-muted-foreground">Set to 0 to enable actions right now.</p>
+                            <Input 
+                                type="number" 
+                                value={editActionHours} 
+                                onChange={(e) => setEditActionHours(Number(e.target.value))} 
+                                min={0}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditBooking(null)} disabled={editing}>Cancel</Button>
+                        <Button onClick={handleEditSubmit} disabled={editing} className="bg-indigo-600 hover:bg-indigo-700 text-white">
+                            {editing && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Save Changes
                         </Button>
                     </DialogFooter>
                 </DialogContent>
