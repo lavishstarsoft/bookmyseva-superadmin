@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import api from "@/lib/axios"
 import { toast } from "sonner"
-import { Loader2, Save, Phone, ScrollText, Image as ImageIcon, Laptop, Globe, ArrowRight, Eye, Upload, Trash2 } from "lucide-react"
+import { Loader2, Save, Phone, ScrollText, Image as ImageIcon, Laptop, Globe, ArrowRight, Eye, Upload, Trash2, Crop } from "lucide-react"
+import Cropper from "react-easy-crop"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -29,6 +30,47 @@ const settingsSchema = z.object({
 
 type SettingsValues = z.infer<typeof settingsSchema>
 
+// Helper to crop image in client-side HTML5 Canvas
+const getCroppedImg = (imageSrc: string, pixelCrop: any): Promise<Blob> => {
+    return new Promise((resolve, reject) => {
+        const image = new Image()
+        image.src = imageSrc
+        image.crossOrigin = "anonymous" // Avoid CORS taint issues
+        image.onload = () => {
+            const canvas = document.createElement("canvas")
+            const ctx = canvas.getContext("2d")
+            if (!ctx) {
+                reject(new Error("No 2d context"))
+                return
+            }
+
+            canvas.width = pixelCrop.width
+            canvas.height = pixelCrop.height
+
+            ctx.drawImage(
+                image,
+                pixelCrop.x,
+                pixelCrop.y,
+                pixelCrop.width,
+                pixelCrop.height,
+                0,
+                0,
+                pixelCrop.width,
+                pixelCrop.height
+            )
+
+            canvas.toBlob((blob) => {
+                if (!blob) {
+                    reject(new Error("Canvas is empty"))
+                    return
+                }
+                resolve(blob)
+            }, "image/jpeg", 0.95)
+        }
+        image.onerror = (err) => reject(err)
+    })
+}
+
 export default function PujariSettingsPage() {
     const [activeTab, setActiveTab] = useState<"general" | "banner">("general")
     const [isLoading, setIsLoading] = useState(true)
@@ -47,6 +89,13 @@ export default function PujariSettingsPage() {
     const [imageFile, setImageFile] = useState<File | null>(null)
     const [imagePreview, setImagePreview] = useState<string>("")
     const [isSavingBanner, setIsSavingBanner] = useState(false)
+
+    // Cropper States
+    const [cropImageSrc, setCropImageSrc] = useState<string>("")
+    const [crop, setCrop] = useState({ x: 0, y: 0 })
+    const [zoom, setZoom] = useState(1)
+    const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+    const [showCropModal, setShowCropModal] = useState(false)
 
     const form = useForm<SettingsValues>({
         resolver: zodResolver(settingsSchema),
@@ -108,8 +157,36 @@ export default function PujariSettingsPage() {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files.length > 0) {
             const file = e.target.files[0]
-            setImageFile(file)
-            setImagePreview(URL.createObjectURL(file))
+            const reader = new FileReader()
+            reader.addEventListener("load", () => {
+                setCropImageSrc(reader.result as string)
+                setShowCropModal(true)
+                setZoom(1)
+                setCrop({ x: 0, y: 0 })
+            })
+            reader.readAsDataURL(file)
+            
+            // Reset input so change event fires again if uploading same image
+            e.target.value = ""
+        }
+    }
+
+    const handleCropComplete = (croppedArea: any, croppedAreaPixels: any) => {
+        setCroppedAreaPixels(croppedAreaPixels)
+    }
+
+    const applyCrop = async () => {
+        if (!cropImageSrc || !croppedAreaPixels) return
+        try {
+            const croppedBlob = await getCroppedImg(cropImageSrc, croppedAreaPixels)
+            const croppedFile = new File([croppedBlob], "banner-cropped.jpg", { type: "image/jpeg" })
+            setImageFile(croppedFile)
+            setImagePreview(URL.createObjectURL(croppedBlob))
+            setShowCropModal(false)
+            toast.success("Image cropped successfully")
+        } catch (err) {
+            console.error("Cropping error:", err)
+            toast.error("Failed to crop image")
         }
     }
 
@@ -355,16 +432,24 @@ export default function PujariSettingsPage() {
                                         <label className="text-sm font-semibold text-gray-700 block">Banner Background Image</label>
                                         <div className="flex items-center gap-4">
                                             <div className="flex-1">
-                                                <div className="relative border-2 border-dashed border-[#8D0303]/10 hover:border-[#8D0303]/30 transition-all rounded-xl p-4 flex flex-col items-center justify-center bg-gray-50/50 cursor-pointer">
+                                                <div className="relative border-2 border-dashed border-[#8D0303]/10 hover:border-[#8D0303]/30 transition-all rounded-xl p-6 flex flex-col items-center justify-center bg-gray-50/50 cursor-pointer">
                                                     <input 
                                                         type="file" 
                                                         accept="image/*" 
                                                         onChange={handleFileChange}
                                                         className="absolute inset-0 opacity-0 cursor-pointer w-full h-full z-20"
                                                     />
-                                                    <Upload className="h-6 w-6 text-[#8D0303]/60 mb-2" />
+                                                    <Upload className="h-6 w-6 text-[#8D0303]/60 mb-2 animate-bounce" />
                                                     <span className="text-xs font-semibold text-[#8D0303]/80">Drag and drop or click to upload banner</span>
-                                                    <span className="text-[10px] text-gray-400 mt-1">PNG, JPG or WebP (Recommended aspect ratio 2.5:1, e.g. 1000x400)</span>
+                                                    <span className="text-[10px] text-gray-400 mt-1">Files supported: PNG, JPG, WebP</span>
+                                                    
+                                                    {/* Suggested Dimensions Label */}
+                                                    <div className="mt-3 bg-orange-50 border border-orange-200/50 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                                                        <Crop className="h-3 w-3 text-orange-600" />
+                                                        <span className="text-[10px] text-orange-800 font-bold text-center">
+                                                            సిఫార్సు చేయబడిన పరిమాణం (Ideal Resolution): 1000px × 400px (Aspect Ratio 2.5:1)
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -675,6 +760,74 @@ export default function PujariSettingsPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                    </div>
+                </div>
+            )}
+
+            {/* Dynamic Crop Image Modal Dialog */}
+            {showCropModal && (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+                    <div className="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl flex flex-col max-h-[95vh] border border-gray-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <div>
+                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                                    <Crop className="h-5 w-5 text-[#8D0303]" />
+                                    Crop Banner Image
+                                </h3>
+                                <p className="text-xs text-gray-400">Position and zoom the image to fit the 2.5:1 aspect ratio perfectly.</p>
+                            </div>
+                        </div>
+                        
+                        {/* Cropper area wrapping react-easy-crop */}
+                        <div className="relative w-full h-80 bg-gray-950 rounded-xl overflow-hidden mb-4">
+                            <Cropper
+                                image={cropImageSrc}
+                                crop={crop}
+                                zoom={zoom}
+                                aspect={2.5}
+                                onCropChange={setCrop}
+                                onZoomChange={setZoom}
+                                onCropComplete={handleCropComplete}
+                            />
+                        </div>
+                        
+                        {/* Zoom controller slider */}
+                        <div className="space-y-2 mb-6">
+                            <div className="flex justify-between text-xs font-bold text-gray-500">
+                                <span>Zoom Level</span>
+                                <span className="text-[#8D0303]">{Math.round(zoom * 100)}%</span>
+                            </div>
+                            <input 
+                                type="range"
+                                min={1}
+                                max={3}
+                                step={0.1}
+                                value={zoom}
+                                onChange={(e) => setZoom(parseFloat(e.target.value))}
+                                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-[#8D0303]"
+                            />
+                        </div>
+                        
+                        {/* Actions */}
+                        <div className="flex justify-end gap-3 border-t border-gray-100 pt-4">
+                            <Button 
+                                type="button" 
+                                onClick={() => {
+                                    setShowCropModal(false)
+                                    setImageFile(null)
+                                }}
+                                className="bg-transparent border border-gray-200 text-gray-500 hover:bg-gray-50"
+                            >
+                                Cancel
+                            </Button>
+                            <Button 
+                                type="button" 
+                                onClick={applyCrop}
+                                className="bg-[#8D0303] hover:bg-[#720202] text-white px-6 shadow-md"
+                            >
+                                Crop & Apply
+                            </Button>
+                        </div>
                     </div>
                 </div>
             )}
