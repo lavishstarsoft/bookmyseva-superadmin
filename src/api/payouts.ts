@@ -99,6 +99,25 @@ export const payoutsApi = {
         return res.data;
     },
 
+    // Pujari Summary
+    getPujariSummary: async () => {
+        const res = await api.get<{
+            status: string;
+            summary: {
+                totalEarnings: number;
+                pendingAmount: number;
+                transferredAmount: number;
+                pendingWithdrawalAmount: number;
+                pendingWithdrawalCount: number;
+                adminCommissionEarned: number;
+                completedBookings: number;
+                totalBookings: number;
+                totalRevenue: number;
+            };
+        }>('admin/payouts/pujari-summary');
+        return res.data;
+    },
+
     // Vendor-wise summary
     getVendorSummaries: async (params?: { search?: string; page?: number; limit?: number }) => {
         const res = await api.get<{
@@ -110,7 +129,7 @@ export const payoutsApi = {
     },
 
     // Withdrawal requests
-    getWithdrawalRequests: async (params?: { status?: string; page?: number; limit?: number }) => {
+    getWithdrawalRequests: async (params?: { status?: string; page?: number; limit?: number; isPujari?: boolean }) => {
         const res = await api.get<{
             status: string;
             requests: WithdrawalRequest[];
@@ -187,6 +206,24 @@ export const payoutsApi = {
     // Mark single payout as paid
     markPayoutPaid: async (payoutId: string, transactionRef: string) => {
         const res = await api.patch(`admin/payouts/${payoutId}/pay`, { transactionRef });
+        return res.data;
+    },
+
+    // Delete withdrawal request
+    deleteWithdrawal: async (id: string, password: string) => {
+        const res = await api.delete(`admin/payouts/withdrawals/${id}`, { data: { password } });
+        return res.data;
+    },
+
+    // Delete vendor payouts
+    deleteVendorPayouts: async (vendorId: string, password: string) => {
+        const res = await api.delete(`admin/payouts/vendor/${vendorId}/payouts`, { data: { password } });
+        return res.data;
+    },
+
+    // Delete pujari payouts
+    deletePujariPayouts: async (pujariId: string, password: string) => {
+        const res = await api.delete(`admin/payouts/pujari/${pujariId}/payouts`, { data: { password } });
         return res.data;
     }
 };

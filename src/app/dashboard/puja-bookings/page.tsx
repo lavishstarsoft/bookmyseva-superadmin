@@ -32,7 +32,7 @@ interface PujaBooking {
     scheduledTimeSlot: string;
     actionEnableHoursBefore?: number;
     address: { line1: string; city: string; state: string; pincode: string };
-    pricing: { totalAmount: number; finalAmount: number; priceIncrement: number };
+    pricing: { totalAmount: number; finalAmount: number; priceIncrement: number; adminCommissionAmount?: number; pujariEarnings?: number };
     payment: { mode: string; totalPaid: number; advancePaid: boolean; remainingPaid: boolean };
     matchingStatus: string;
     status: string;
@@ -185,6 +185,8 @@ export default function PujaBookingsPage() {
         active: bookings.filter(b => !["completed", "cancelled", "failed"].includes(b.status)).length,
         completed: bookings.filter(b => b.status === "completed").length,
         revenue: bookings.reduce((sum, b) => sum + (b.payment?.totalPaid || 0), 0),
+        pujariShare: bookings.reduce((sum, b) => sum + (b.pricing?.pujariEarnings || 0), 0),
+        adminCommission: bookings.reduce((sum, b) => sum + (b.pricing?.adminCommissionAmount || 0), 0),
     };
 
     return (
@@ -197,34 +199,48 @@ export default function PujaBookingsPage() {
             </div>
 
             {/* Stats */}
-            <div className="grid gap-4 md:grid-cols-4">
+            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6">
                 <Card className="bg-gradient-to-br from-indigo-50 to-blue-50 border-l-4 border-l-indigo-600 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Bookings</CardTitle>
+                        <CardTitle className="text-xs sm:text-sm font-medium whitespace-nowrap truncate">Total Bookings</CardTitle>
                         <ShoppingCart className="h-4 w-4 text-indigo-600" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold text-indigo-900">{stats.total}</div></CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-l-4 border-l-amber-600 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Active</CardTitle>
+                        <CardTitle className="text-xs sm:text-sm font-medium whitespace-nowrap truncate">Active</CardTitle>
                         <Clock className="h-4 w-4 text-amber-600" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold text-amber-900">{stats.active}</div></CardContent>
                 </Card>
                 <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-l-emerald-600 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Completed</CardTitle>
+                        <CardTitle className="text-xs sm:text-sm font-medium whitespace-nowrap truncate">Completed</CardTitle>
                         <UserCheck className="h-4 w-4 text-emerald-600" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold text-emerald-900">{stats.completed}</div></CardContent>
                 </Card>
-                <Card className="bg-gradient-to-br from-green-50 to-emerald-50 border-l-4 border-l-green-600 shadow-sm">
+                <Card className="bg-gradient-to-br from-teal-50 to-green-50 border-l-4 border-l-teal-600 shadow-sm">
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Revenue</CardTitle>
-                        <IndianRupee className="h-4 w-4 text-green-600" />
+                        <CardTitle className="text-xs sm:text-sm font-medium whitespace-nowrap truncate">Total Revenue</CardTitle>
+                        <IndianRupee className="h-4 w-4 text-teal-600" />
                     </CardHeader>
-                    <CardContent><div className="text-2xl font-bold text-green-900">₹{stats.revenue.toLocaleString()}</div></CardContent>
+                    <CardContent><div className="text-2xl font-bold text-teal-900">₹{stats.revenue.toLocaleString()}</div></CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-purple-50 to-indigo-50 border-l-4 border-l-purple-600 shadow-sm">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium whitespace-nowrap truncate">Pujari Share</CardTitle>
+                        <IndianRupee className="h-4 w-4 text-purple-600" />
+                    </CardHeader>
+                    <CardContent><div className="text-2xl font-bold text-purple-900">₹{stats.pujariShare.toLocaleString()}</div></CardContent>
+                </Card>
+                <Card className="bg-gradient-to-br from-rose-50 to-pink-50 border-l-4 border-l-[#8D0303] shadow-sm">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                        <CardTitle className="text-xs sm:text-sm font-medium whitespace-nowrap truncate">Commission</CardTitle>
+                        <IndianRupee className="h-4 w-4 text-[#8D0303]" />
+                    </CardHeader>
+                    <CardContent><div className="text-2xl font-bold text-rose-900">₹{stats.adminCommission.toLocaleString()}</div></CardContent>
                 </Card>
             </div>
 
@@ -261,13 +277,15 @@ export default function PujaBookingsPage() {
                                 <TableHead>Pujari</TableHead>
                                 <TableHead>Scheduled</TableHead>
                                 <TableHead>Amount</TableHead>
+                                <TableHead>Admin Comm.</TableHead>
+                                <TableHead>Pujari Share</TableHead>
                                 <TableHead>Status</TableHead>
                                 <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {loading ? (
-                                <TableRow><TableCell colSpan={8} className="h-40 text-center"><div className="flex flex-col items-center justify-center gap-2"><Loader2 className="w-8 h-8 animate-spin text-[#8D0303]" /><p className="text-muted-foreground">Loading bookings...</p></div></TableCell></TableRow>
+                                <TableRow><TableCell colSpan={10} className="h-40 text-center"><div className="flex flex-col items-center justify-center gap-2"><Loader2 className="w-8 h-8 animate-spin text-[#8D0303]" /><p className="text-muted-foreground">Loading bookings...</p></div></TableCell></TableRow>
                             ) : bookings.map((booking) => (
                                 <TableRow key={booking._id} className="hover:bg-muted/30">
                                     <TableCell>
@@ -300,6 +318,12 @@ export default function PujaBookingsPage() {
                                     <TableCell>
                                         <div className="font-bold text-sm">₹{booking.pricing?.finalAmount || 0}</div>
                                         {paymentBadge(booking.paymentStatus)}
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="font-bold text-sm text-emerald-700">₹{(booking.pricing?.adminCommissionAmount || 0).toLocaleString()}</div>
+                                    </TableCell>
+                                    <TableCell>
+                                        <div className="font-bold text-sm text-indigo-700">₹{(booking.pricing?.pujariEarnings || 0).toLocaleString()}</div>
                                     </TableCell>
                                     <TableCell>{statusBadge(booking.status)}</TableCell>
                                     <TableCell className="text-right">
@@ -341,7 +365,7 @@ export default function PujaBookingsPage() {
                                 </TableRow>
                             ))}
                             {!loading && bookings.length === 0 && (
-                                <TableRow><TableCell colSpan={8} className="h-40 text-center text-muted-foreground">No bookings found.</TableCell></TableRow>
+                                <TableRow><TableCell colSpan={10} className="h-40 text-center text-muted-foreground">No bookings found.</TableCell></TableRow>
                             )}
                         </TableBody>
                     </Table>
@@ -389,6 +413,8 @@ export default function PujaBookingsPage() {
                                 <div className="flex justify-between"><span>Total Paid</span><span className="font-bold text-green-600">₹{viewBooking.payment?.totalPaid}</span></div>
                                 {viewBooking.bmsCoins?.used > 0 && <div className="flex justify-between"><span>BMS Coins Used</span><span className="font-medium text-amber-600">{viewBooking.bmsCoins.used}</span></div>}
                                 {viewBooking.bmsCoins?.earned > 0 && <div className="flex justify-between"><span>Coins Earned</span><span className="font-medium text-green-600">+{viewBooking.bmsCoins.earned}</span></div>}
+                                <div className="flex justify-between border-t border-green-200/50 pt-1 mt-1"><span>Admin Commission</span><span className="font-bold text-emerald-800">₹{viewBooking.pricing?.adminCommissionAmount || 0}</span></div>
+                                <div className="flex justify-between"><span>Pujari Earnings</span><span className="font-bold text-indigo-800">₹{viewBooking.pricing?.pujariEarnings || 0}</span></div>
                             </div>
                             
                             {/* Pujari Workflow / Tracking UI */}

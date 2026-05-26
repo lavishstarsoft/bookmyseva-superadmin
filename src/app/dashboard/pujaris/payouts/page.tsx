@@ -20,10 +20,22 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { payoutsApi, PayoutSummary, VendorPayoutSummary, WithdrawalRequest } from "@/api/payouts";
+import { payoutsApi, WithdrawalRequest } from "@/api/payouts";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 import { format } from "date-fns";
+
+interface PujariSummaryStats {
+    totalEarnings: number;
+    pendingAmount: number;
+    transferredAmount: number;
+    pendingWithdrawalAmount: number;
+    pendingWithdrawalCount: number;
+    adminCommissionEarned: number;
+    completedBookings: number;
+    totalBookings: number;
+    totalRevenue: number;
+}
 
 function StatCard({ label, value, color, icon, prefix = "" }: { label: string; value: number | string; color: string; icon: React.ReactNode; prefix?: string }) {
     return (
@@ -39,10 +51,10 @@ function StatCard({ label, value, color, icon, prefix = "" }: { label: string; v
     );
 }
 
-export default function PayoutsPage() {
-    const [activeTab, setActiveTab] = useState("vendors");
-    const [summary, setSummary] = useState<PayoutSummary | null>(null);
-    const [vendors, setVendors] = useState<VendorPayoutSummary[]>([]);
+export default function PujariPayoutsPage() {
+    const [activeTab, setActiveTab] = useState("pujaris");
+    const [summary, setSummary] = useState<PujariSummaryStats | null>(null);
+    const [pujaris, setPujaris] = useState<any[]>([]);
     const [withdrawals, setWithdrawals] = useState<WithdrawalRequest[]>([]);
     const [withdrawalStats, setWithdrawalStats] = useState({ pending: 0, approved: 0, paid: 0, rejected: 0 });
     const [loading, setLoading] = useState(true);
@@ -50,6 +62,10 @@ export default function PayoutsPage() {
     const [statusFilter, setStatusFilter] = useState("all");
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
+
+    const [pujariMinWithdrawal, setPujariMinWithdrawal] = useState(500);
+    const [pujariMaxWithdrawal, setPujariMaxWithdrawal] = useState(10000);
+    const [savingSettings, setSavingSettings] = useState(false);
 
     // Modal state
     const [payModal, setPayModal] = useState<{ open: boolean; id: string; name: string; amount: number; type: string } | null>(null);
@@ -63,9 +79,9 @@ export default function PayoutsPage() {
     const [otherDeductionAmount, setOtherDeductionAmount] = useState("");
     const [processing, setProcessing] = useState(false);
 
-    // Delete states
+    // Delete state
     const [deleteWithdrawalId, setDeleteWithdrawalId] = useState<string | null>(null);
-    const [deleteVendorId, setDeleteVendorId] = useState<{ id: string; name: string } | null>(null);
+    const [deletePujariId, setDeletePujariId] = useState<{ id: string; name: string } | null>(null);
     const [confirmPassword, setConfirmPassword] = useState("");
     const [deleting, setDeleting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -88,18 +104,18 @@ export default function PayoutsPage() {
         }
     };
 
-    const handleDeleteVendorPayouts = async () => {
-        if (!deleteVendorId) return;
+    const handleDeletePujariPayouts = async () => {
+        if (!deletePujariId) return;
         setDeleting(true);
         try {
-            await payoutsApi.deleteVendorPayouts(deleteVendorId.id, confirmPassword);
-            toast.success(`All payouts for ${deleteVendorId.name} deleted successfully`);
-            setDeleteVendorId(null);
+            await payoutsApi.deletePujariPayouts(deletePujariId.id, confirmPassword);
+            toast.success(`All payouts for Pujari ${deletePujariId.name} deleted successfully`);
+            setDeletePujariId(null);
             setConfirmPassword("");
-            fetchVendors();
+            fetchPujaris();
             fetchSummary();
         } catch (err: any) {
-            const msg = err.response?.data?.message || "Failed to delete vendor payouts";
+            const msg = err.response?.data?.message || "Failed to delete Pujari payouts";
             toast.error(msg);
         } finally {
             setDeleting(false);
@@ -108,25 +124,28 @@ export default function PayoutsPage() {
 
     const fetchSummary = async () => {
         try {
-            const res = await payoutsApi.getSummary();
+            const res = await payoutsApi.getPujariSummary();
             setSummary(res.summary);
         } catch {
-            toast.error("Failed to load summary");
+            toast.error("Failed to load Pujari summary");
         }
     };
 
-    const fetchVendors = useCallback(async () => {
+    const fetchPujaris = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await payoutsApi.getVendorSummaries({ search: search || undefined, page, limit: 20 });
-            setVendors(res.vendors);
-            setTotalPages(res.pagination.pages);
+            const response = await api.get("/admin/payouts/pujari-list", {
+                params: { search: search || undefined }
+            });
+            if (response.data.success) {
+                setPujaris(response.data.pujaris || []);
+            }
         } catch {
-            toast.error("Failed to load vendors");
+            toast.error("Failed to load Pujaris");
         } finally {
             setLoading(false);
         }
-    }, [search, page]);
+    }, [search]);
 
     const fetchWithdrawals = useCallback(async () => {
         setLoading(true);
@@ -135,7 +154,7 @@ export default function PayoutsPage() {
                 status: statusFilter === "all" ? undefined : statusFilter,
                 page,
                 limit: 20,
-                isPujari: false
+                isPujari: true
             });
             setWithdrawals(res.requests);
             setWithdrawalStats(res.stats);
@@ -147,17 +166,49 @@ export default function PayoutsPage() {
         }
     }, [statusFilter, page]);
 
+    const fetchLimits = async () => {
+        setLoading(true);
+        try {
+            const response = await api.get("/app-config");
+            if (response.data) {
+                setPujariMinWithdrawal(response.data.pujariMinWithdrawal ?? 500);
+                setPujariMaxWithdrawal(response.data.pujariMaxWithdrawal ?? 10000);
+            }
+        } catch {
+            toast.error("Failed to load withdrawal limits");
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSaveSettings = async () => {
+        setSavingSettings(true);
+        try {
+            await api.post("/app-config", {
+                pujariMinWithdrawal: Number(pujariMinWithdrawal),
+                pujariMaxWithdrawal: Number(pujariMaxWithdrawal)
+            });
+            toast.success("Withdrawal limits updated successfully");
+        } catch {
+            toast.error("Failed to save settings");
+        } finally {
+            setSavingSettings(false);
+        }
+    };
+
     useEffect(() => {
         fetchSummary();
     }, []);
 
     useEffect(() => {
-        if (activeTab === "vendors") {
-            fetchVendors();
+        if (activeTab === "pujaris") {
+            fetchPujaris();
         } else if (activeTab === "withdrawals") {
             fetchWithdrawals();
+        } else if (activeTab === "settings") {
+            fetchLimits();
         }
-    }, [activeTab, fetchVendors, fetchWithdrawals]);
+    }, [activeTab, fetchPujaris, fetchWithdrawals]);
 
     useEffect(() => {
         setPage(1);
@@ -207,6 +258,7 @@ export default function PayoutsPage() {
             setApproveGstRate("18");
             setApproveRemarks("");
             fetchWithdrawals();
+            fetchSummary();
         } catch {
             toast.error("Failed to approve");
         }
@@ -219,18 +271,9 @@ export default function PayoutsPage() {
             await payoutsApi.rejectWithdrawal(id, reason);
             toast.success("Withdrawal rejected");
             fetchWithdrawals();
+            fetchSummary();
         } catch {
             toast.error("Failed to reject");
-        }
-    };
-
-    const handleSendStatement = async (id: string) => {
-        try {
-            await payoutsApi.sendStatementToVendor(id);
-            toast.success("Statement sent to vendor");
-            fetchWithdrawals();
-        } catch {
-            toast.error("Failed to send statement");
         }
     };
 
@@ -240,6 +283,7 @@ export default function PayoutsPage() {
             await payoutsApi.revertWithdrawalToPending(id, reason);
             toast.success("Moved back to pending");
             fetchWithdrawals();
+            fetchSummary();
         } catch {
             toast.error("Failed to move to pending");
         }
@@ -251,6 +295,7 @@ export default function PayoutsPage() {
             await payoutsApi.cancelApprovedWithdrawal(id, reason);
             toast.success("Approved request cancelled");
             fetchWithdrawals();
+            fetchSummary();
         } catch {
             toast.error("Failed to cancel approved request");
         }
@@ -263,69 +308,101 @@ export default function PayoutsPage() {
                 <div>
                     <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
                         <Wallet className="w-6 h-6 text-[#8D0303]" />
-                        Vendor Payouts
+                        Pujari Payouts
                     </h1>
                     <p className="text-sm text-muted-foreground mt-1">
-                        Manage vendor earnings and process payouts
+                        Manage Pujari earnings and process payouts
                     </p>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => { fetchSummary(); activeTab === "vendors" ? fetchVendors() : fetchWithdrawals(); }}>
+                <Button variant="outline" size="sm" onClick={() => { fetchSummary(); activeTab === "pujaris" ? fetchPujaris() : fetchWithdrawals(); }}>
                     <RefreshCw className="w-4 h-4 mr-2" /> Refresh
                 </Button>
             </div>
 
             {/* Summary Stats */}
             {summary && (
+                <>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                     <StatCard
-                        label="Pending Payouts"
-                        value={summary.pendingPayoutAmount}
+                        label="Total Pujari Earnings"
+                        value={summary.totalEarnings}
+                        color="bg-purple-100 text-purple-700"
+                        icon={<IndianRupee className="w-5 h-5" />}
+                        prefix="₹"
+                    />
+                    <StatCard
+                        label="Available to Withdraw"
+                        value={summary.pendingAmount}
                         color="bg-amber-100 text-amber-700"
                         icon={<Clock className="w-5 h-5" />}
                         prefix="₹"
                     />
                     <StatCard
-                        label="Paid Out"
-                        value={summary.paidPayoutAmount}
+                        label="Transferred"
+                        value={summary.transferredAmount}
                         color="bg-green-100 text-green-700"
                         icon={<CheckCircle2 className="w-5 h-5" />}
                         prefix="₹"
                     />
                     <StatCard
-                        label="Withdrawal Requests"
-                        value={summary.pendingWithdrawalCount}
-                        color="bg-blue-100 text-blue-700"
-                        icon={<CreditCard className="w-5 h-5" />}
-                    />
-                    <StatCard
-                        label="Commission Earned"
-                        value={summary.totalCommissionEarned}
+                        label="Commission"
+                        value={summary.adminCommissionEarned}
                         color="bg-[#8D0303]/10 text-[#8D0303]"
                         icon={<Percent className="w-5 h-5" />}
                         prefix="₹"
                     />
                 </div>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <StatCard
+                        label="Total Revenue"
+                        value={summary.totalRevenue}
+                        color="bg-indigo-100 text-indigo-700"
+                        icon={<Wallet className="w-5 h-5" />}
+                        prefix="₹"
+                    />
+                    <StatCard
+                        label="Total Bookings"
+                        value={`${summary.completedBookings}/${summary.totalBookings}`}
+                        color="bg-teal-100 text-teal-700"
+                        icon={<CheckCircle2 className="w-5 h-5" />}
+                    />
+                    <StatCard
+                        label="Pending Requests"
+                        value={summary.pendingWithdrawalCount}
+                        color="bg-blue-100 text-blue-700"
+                        icon={<CreditCard className="w-5 h-5" />}
+                    />
+                    <StatCard
+                        label="Withdrawal Pending"
+                        value={summary.pendingWithdrawalAmount}
+                        color="bg-orange-100 text-orange-700"
+                        icon={<AlertCircle className="w-5 h-5" />}
+                        prefix="₹"
+                    />
+                </div>
+                </>
             )}
 
             {/* Tabs */}
             <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList>
-                    <TabsTrigger value="vendors">Vendor Summary</TabsTrigger>
+                    <TabsTrigger value="pujaris">Pujari Summary</TabsTrigger>
                     <TabsTrigger value="withdrawals">
                         Withdrawal Requests
                         {withdrawalStats.pending > 0 && (
                             <Badge className="ml-2 bg-amber-500 text-white">{withdrawalStats.pending}</Badge>
                         )}
                     </TabsTrigger>
+                    <TabsTrigger value="settings">Withdrawal Settings</TabsTrigger>
                 </TabsList>
 
-                {/* Vendors Tab */}
-                <TabsContent value="vendors" className="space-y-4">
+                {/* Pujaris Tab */}
+                <TabsContent value="pujaris" className="space-y-4">
                     <div className="bg-white rounded-xl border p-4 shadow-sm">
                         <div className="relative">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
-                                placeholder="Search vendors..."
+                                placeholder="Search Pujaris by name or phone..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
                                 className="pl-9"
@@ -338,73 +415,69 @@ export default function PayoutsPage() {
                             <div className="flex items-center justify-center py-24">
                                 <Loader2 className="w-8 h-8 animate-spin text-[#8D0303]" />
                             </div>
-                        ) : vendors.length === 0 ? (
+                        ) : pujaris.length === 0 ? (
                             <div className="flex flex-col items-center justify-center py-24 text-center">
                                 <Store className="w-12 h-12 text-muted-foreground mb-4" />
-                                <h3 className="font-bold text-lg">No vendors found</h3>
+                                <h3 className="font-bold text-lg">No Pujaris found</h3>
                             </div>
                         ) : (
                             <div className="overflow-x-auto">
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="bg-muted/30">
-                                            <TableHead className="font-bold text-xs uppercase">Vendor</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Pujari</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Total Earnings</TableHead>
-                                            <TableHead className="font-bold text-xs uppercase">Pending</TableHead>
-                                            <TableHead className="font-bold text-xs uppercase">Paid</TableHead>
-                                            <TableHead className="font-bold text-xs uppercase">Available To Withdraw</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Pending (Available)</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Transferred</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Bookings</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Bank Details</TableHead>
-                                            <TableHead className="font-bold text-xs uppercase">Payout Flow</TableHead>
                                             <TableHead className="font-bold text-xs uppercase text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {vendors.map((vendor) => (
-                                            <TableRow key={vendor._id}>
+                                        {pujaris.map((pujari) => (
+                                            <TableRow key={pujari._id}>
                                                 <TableCell>
-                                                    <div className="font-semibold">{vendor.name}</div>
-                                                    <div className="text-xs text-muted-foreground">{vendor.email}</div>
+                                                    <div className="font-semibold">{pujari.name}</div>
+                                                    <div className="text-xs text-muted-foreground">{pujari.phone}</div>
+                                                    <div className="text-xs text-muted-foreground">{pujari.email || 'No email'}</div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-bold text-lg">₹{vendor.totalEarnings.toLocaleString()}</div>
+                                                    <div className="font-bold text-lg">₹{(pujari.earnings?.total || 0).toLocaleString()}</div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-bold text-amber-600">₹{vendor.pendingAmount.toLocaleString()}</div>
-                                                    <div className="text-xs text-muted-foreground">{vendor.pendingCount} orders</div>
+                                                    <div className="font-bold text-amber-600">₹{(pujari.earnings?.pending || 0).toLocaleString()}</div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-bold text-green-600">₹{vendor.paidAmount.toLocaleString()}</div>
-                                                    <div className="text-xs text-muted-foreground">{vendor.paidCount} orders</div>
+                                                    <div className="font-bold text-green-600">₹{(pujari.earnings?.transferred || 0).toLocaleString()}</div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <div className="font-bold text-blue-700">₹{(vendor.availableForWithdrawal || 0).toLocaleString()}</div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        Pending req: ₹{(vendor.pendingWithdrawalAmount || 0).toLocaleString()}
-                                                    </div>
+                                                    <div className="font-semibold">{pujari.completedCount || 0}/{pujari.bookingCount || 0}</div>
+                                                    <div className="text-xs text-muted-foreground">Completed/Total</div>
                                                 </TableCell>
                                                 <TableCell>
-                                                    {vendor.bankDetails?.accountNumber ? (
+                                                    {pujari.bankDetails?.accountNumber ? (
                                                         <div className="text-xs">
-                                                            <div className="font-medium">{vendor.bankDetails.bankName}</div>
-                                                            <div className="text-muted-foreground">***{vendor.bankDetails.accountNumber.slice(-4)}</div>
+                                                            <div className="font-semibold">{pujari.bankDetails.bankName}</div>
+                                                            <div className="text-muted-foreground">A/C Holder: {pujari.bankDetails.accountHolderName}</div>
+                                                            <div className="text-muted-foreground">A/C No: {pujari.bankDetails.accountNumber}</div>
+                                                            <div className="text-muted-foreground">IFSC: {pujari.bankDetails.ifscCode}</div>
+                                                            {pujari.bankDetails.upiId ? (
+                                                                <div className="text-[#8D0303] font-semibold mt-0.5">UPI: {pujari.bankDetails.upiId}</div>
+                                                            ) : null}
                                                         </div>
                                                     ) : (
-                                                        <span className="text-xs text-red-500 flex items-center gap-1">
-                                                            <AlertCircle className="w-3 h-3" /> Not set
+                                                        <span className="text-xs text-red-500 flex items-center gap-1 font-semibold">
+                                                            <AlertCircle className="w-3.5 h-3.5" /> Not set
                                                         </span>
                                                     )}
-                                                </TableCell>
-                                                <TableCell>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        Use <span className="font-semibold text-[#8D0303]">Withdrawal Requests</span> tab to release payments.
-                                                    </span>
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <Button 
                                                         size="sm" 
                                                         variant="outline" 
                                                         className="text-red-600 hover:bg-red-50 border-red-200"
-                                                        onClick={() => setDeleteVendorId({ id: vendor._id, name: vendor.name })}
+                                                        onClick={() => setDeletePujariId({ id: pujari._id, name: pujari.name })}
                                                     >
                                                         <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete Payouts
                                                     </Button>
@@ -450,7 +523,7 @@ export default function PayoutsPage() {
                                 <Table>
                                     <TableHeader>
                                         <TableRow className="bg-muted/30">
-                                            <TableHead className="font-bold text-xs uppercase">Vendor</TableHead>
+                                            <TableHead className="font-bold text-xs uppercase">Pujari</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Amount</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Bank Details</TableHead>
                                             <TableHead className="font-bold text-xs uppercase">Requested</TableHead>
@@ -463,14 +536,7 @@ export default function PayoutsPage() {
                                         {withdrawals.map((req) => (
                                             <TableRow key={req._id}>
                                                 <TableCell>
-                                                    <div className="font-semibold flex items-center gap-1.5">
-                                                        {req.vendorName}
-                                                        {req.isPujari ? (
-                                                            <Badge className="bg-purple-100 text-purple-800 text-[10px] font-semibold hover:bg-purple-100 py-0.5 px-1.5">Pujari</Badge>
-                                                        ) : (
-                                                            <Badge className="bg-orange-100 text-orange-800 text-[10px] font-semibold hover:bg-orange-100 py-0.5 px-1.5">Vendor</Badge>
-                                                        )}
-                                                    </div>
+                                                    <div className="font-semibold">{req.vendorName}</div>
                                                     <div className="text-xs text-muted-foreground">{req.vendorEmail}</div>
                                                 </TableCell>
                                                 <TableCell>
@@ -517,8 +583,8 @@ export default function PayoutsPage() {
                                                     <div className="text-xs space-y-1 max-w-[220px]">
                                                         {(req.auditTrail || []).slice(-2).reverse().map((a, idx) => (
                                                             <div key={`${a.createdAt}-${idx}`} className="rounded border p-1.5 bg-muted/20">
-                                                                <div className="font-semibold capitalize">{a.action.replace("_", " ")}</div>
-                                                                <div className="text-muted-foreground">{a.actorName || a.actorRole || "System"} • {format(new Date(a.createdAt), "dd MMM, h:mm a")}</div>
+                                                                 <div className="font-semibold capitalize">{a.action.replace("_", " ")}</div>
+                                                                 <div className="text-muted-foreground">{a.actorName || a.actorRole || "System"} • {format(new Date(a.createdAt), "dd MMM, h:mm a")}</div>
                                                             </div>
                                                         ))}
                                                         {!req.auditTrail?.length && <span className="text-muted-foreground">No logs</span>}
@@ -565,9 +631,6 @@ export default function PayoutsPage() {
                                                                 >
                                                                     <CreditCard className="w-3 h-3 mr-1" /> Mark Paid
                                                                 </Button>
-                                                                <Button size="sm" variant="outline" onClick={() => handleSendStatement(req._id)}>
-                                                                    Send Statement
-                                                                </Button>
                                                                 <Button size="sm" variant="outline" onClick={() => handleRevertToPending(req._id)}>
                                                                     Move Pending
                                                                 </Button>
@@ -575,11 +638,6 @@ export default function PayoutsPage() {
                                                                     Cancel
                                                                 </Button>
                                                             </>
-                                                        )}
-                                                        {req.status === 'paid' && (
-                                                            <Button size="sm" variant="outline" onClick={() => handleSendStatement(req._id)}>
-                                                                Resend Statement
-                                                            </Button>
                                                         )}
                                                         <Button
                                                             size="sm"
@@ -599,6 +657,53 @@ export default function PayoutsPage() {
                         )}
                     </div>
                 </TabsContent>
+
+                {/* Settings Tab */}
+                <TabsContent value="settings" className="space-y-4">
+                    <div className="bg-white rounded-xl border p-6 shadow-sm max-w-xl">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                            <Settings className="w-5 h-5 text-[#8D0303]" />
+                            Pujari Withdrawal Limits Config
+                        </h3>
+                        <div className="space-y-4">
+                            <div>
+                                <label className="text-sm font-medium mb-1 block">Minimum Withdrawal Limit (₹)</label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="500"
+                                    value={pujariMinWithdrawal}
+                                    onChange={(e) => setPujariMinWithdrawal(Number(e.target.value))}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Pujaris cannot withdraw amounts smaller than this value.</p>
+                            </div>
+                            <div>
+                                <label className="text-sm font-medium mb-1 block">Maximum Withdrawal Limit (₹)</label>
+                                <Input
+                                    type="number"
+                                    min={0}
+                                    placeholder="10000"
+                                    value={pujariMaxWithdrawal}
+                                    onChange={(e) => setPujariMaxWithdrawal(Number(e.target.value))}
+                                />
+                                <p className="text-xs text-muted-foreground mt-1">Pujaris cannot request single withdrawals larger than this value.</p>
+                            </div>
+                            <Button
+                                className="bg-[#8D0303] hover:bg-[#720202] text-white font-bold w-full"
+                                onClick={handleSaveSettings}
+                                disabled={savingSettings}
+                            >
+                                {savingSettings ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin mr-2" /> Saving...
+                                    </>
+                                ) : (
+                                    "Save Withdrawal Limits"
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </TabsContent>
             </Tabs>
 
             {/* Pagination */}
@@ -614,6 +719,7 @@ export default function PayoutsPage() {
                 </div>
             )}
 
+            {/* Approve Modal */}
             <Dialog open={!!approveModal} onOpenChange={() => {
                 setApproveModal(null);
                 setApproveTdsRate("1");
@@ -626,7 +732,7 @@ export default function PayoutsPage() {
                     </DialogHeader>
                     <div className="space-y-4 py-2">
                         <div className="bg-muted/30 rounded-lg p-3">
-                            <div className="text-sm text-muted-foreground">Vendor</div>
+                            <div className="text-sm text-muted-foreground">Pujari</div>
                             <div className="font-semibold">{approveModal?.name}</div>
                             <div className="text-sm mt-1">Requested: <span className="font-bold">₹{approveModal?.amount?.toLocaleString()}</span></div>
                         </div>
@@ -688,7 +794,7 @@ export default function PayoutsPage() {
                                 <div>
                                     <label className="text-sm font-medium mb-1 block">Extra Deduction Label (Optional)</label>
                                     <Input
-                                        placeholder="e.g. Damaged items, packaging fee"
+                                        placeholder="e.g. Service fee deduction"
                                         value={otherDeductionLabel}
                                         onChange={(e) => setOtherDeductionLabel(e.target.value)}
                                     />
@@ -728,7 +834,7 @@ export default function PayoutsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Withdrawal Request Dialog */}
+            {/* Delete Confirmation Dialog */}
             <Dialog open={!!deleteWithdrawalId} onOpenChange={() => { setDeleteWithdrawalId(null); setConfirmPassword(""); setShowPassword(false); }}>
                 <DialogContent>
                     <DialogHeader>
@@ -775,16 +881,16 @@ export default function PayoutsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Vendor Payouts Dialog */}
-            <Dialog open={!!deleteVendorId} onOpenChange={() => { setDeleteVendorId(null); setConfirmPassword(""); setShowPassword(false); }}>
+            {/* Delete Pujari Payouts Dialog */}
+            <Dialog open={!!deletePujariId} onOpenChange={() => { setDeletePujariId(null); setConfirmPassword(""); setShowPassword(false); }}>
                 <DialogContent>
                     <DialogHeader>
                         <DialogTitle className="flex items-center gap-2 text-red-600">
                             <Trash2 className="w-5 h-5" />
-                            Delete Vendor Payouts
+                            Delete Pujari Payouts
                         </DialogTitle>
                         <DialogDescription>
-                            Are you sure you want to permanently delete all payout records for vendor <strong>{deleteVendorId?.name}</strong>? This action cannot be undone and will reset their earnings statistics.
+                            Are you sure you want to permanently delete all payout records/earnings for Pujari <strong>{deletePujariId?.name}</strong>? This action cannot be undone and will reset their earnings statistics.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4 py-2">
@@ -809,9 +915,9 @@ export default function PayoutsPage() {
                         </div>
                     </div>
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => { setDeleteVendorId(null); setConfirmPassword(""); setShowPassword(false); }} disabled={deleting}>Cancel</Button>
+                        <Button variant="outline" onClick={() => { setDeletePujariId(null); setConfirmPassword(""); setShowPassword(false); }} disabled={deleting}>Cancel</Button>
                         <Button 
-                            onClick={handleDeleteVendorPayouts} 
+                            onClick={handleDeletePujariPayouts} 
                             disabled={deleting || !confirmPassword} 
                             variant="destructive"
                         >

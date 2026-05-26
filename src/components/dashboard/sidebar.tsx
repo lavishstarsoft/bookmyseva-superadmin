@@ -138,6 +138,11 @@ const routes = [
                 icon: Users
             },
             {
+                label: "Pujari Payouts",
+                href: "/dashboard/pujaris/payouts",
+                icon: Wallet
+            },
+            {
                 label: "Registration Form",
                 href: "/dashboard/pujaris/registration-form",
                 icon: FileText
