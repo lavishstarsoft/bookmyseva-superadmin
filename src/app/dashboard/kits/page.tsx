@@ -478,7 +478,7 @@ export default function KitsPage() {
                                 if (approveKit?.taxes && Array.isArray(approveKit.taxes)) {
                                     approveKit.taxes.forEach((tax: any) => { taxPct += Number(tax.percentage) || 0; });
                                 }
-                                const base = approveKit?.offerPrice || approveKit?.marketPrice || 0;
+                                const base = Number(approveKit?.offerPrice || approveKit?.marketPrice || 0);
                                 const total = base + (base * taxPct) / 100;
                                 return (
                                     <p><span className="font-medium">Total Price:</span> ₹{total} {taxPct > 0 && <span className="text-muted-foreground text-xs">(₹{base} + {taxPct}% GST)</span>}</p>

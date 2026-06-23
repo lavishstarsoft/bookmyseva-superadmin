@@ -560,7 +560,7 @@ export default function PrasadamsPage() {
                                 if (approvePrasadam?.taxes && Array.isArray(approvePrasadam.taxes)) {
                                     approvePrasadam.taxes.forEach((tax: any) => { taxPct += Number(tax.percentage) || 0; });
                                 }
-                                const base = approvePrasadam?.basePrice || 0;
+                                const base = Number(approvePrasadam?.basePrice || 0);
                                 const total = base + (base * taxPct) / 100;
                                 return (
                                     <p><span className="font-medium">Total Price:</span> ₹{total} {taxPct > 0 && <span className="text-muted-foreground text-xs">(₹{base} + {taxPct}% GST)</span>}</p>
