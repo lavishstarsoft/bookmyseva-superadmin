@@ -378,43 +378,6 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <div className="flex items-center justify-between mb-4">
-                                        <label className="text-sm font-bold text-gray-700">Taxes & Fees Configuration</label>
-                                        <Button type="button" variant="outline" size="sm" onClick={addTax} className="h-8">
-                                            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Tax/Fee
-                                        </Button>
-                                    </div>
-                                    <div className="space-y-4">
-                                        {formData.taxes.length === 0 ? (
-                                            <div className="text-sm text-gray-500 italic p-4 border rounded-xl bg-gray-50 text-center">No taxes configured. (0% will be applied)</div>
-                                        ) : (
-                                            formData.taxes.map((tax, idx) => (
-                                                <div key={idx} className="flex gap-4 items-start p-4 border rounded-xl bg-white relative group">
-                                                    <div className="flex-1 space-y-4">
-                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                            <div className="space-y-2">
-                                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tax Name</label>
-                                                                <Input placeholder="e.g., GST, VAT" value={tax.name} onChange={(e) => updateTax(idx, "name", e.target.value)} className="h-10" />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Percentage (%)</label>
-                                                                <Input type="number" value={tax.percentage} onChange={(e) => updateTax(idx, "percentage", Number(e.target.value))} className="h-10" />
-                                                            </div>
-                                                            <div className="space-y-2">
-                                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Reg. Number (Optional)</label>
-                                                                <Input placeholder="e.g., GSTIN..." value={tax.registrationNumber} onChange={(e) => updateTax(idx, "registrationNumber", e.target.value)} className="h-10 uppercase" />
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <button onClick={() => removeTax(idx)} className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm" type="button">
-                                                        <Trash2 className="w-3 h-3" />
-                                                    </button>
-                                                </div>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
 
                                 <div className="space-y-2">
                                     <label className="text-sm font-bold text-gray-700">Short Catchy Intro</label>
@@ -488,6 +451,46 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                 <CardDescription>Configure distinct packages for different budgets and levels of ritual complexity.</CardDescription>
                             </CardHeader>
                             <CardContent className="p-0">
+                                <div className="p-8 border-b bg-gray-50/50">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="space-y-1">
+                                            <h3 className="text-sm font-bold text-gray-700">Global Taxes & Fees Configuration</h3>
+                                            <p className="text-xs text-muted-foreground">These taxes will apply dynamically to all pricing packages at checkout.</p>
+                                        </div>
+                                        <Button type="button" variant="outline" size="sm" onClick={addTax} className="h-8 bg-white">
+                                            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Tax/Fee
+                                        </Button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {formData.taxes.length === 0 ? (
+                                            <div className="text-sm text-gray-500 italic p-4 border rounded-xl bg-white text-center">No taxes configured. (0% will be applied)</div>
+                                        ) : (
+                                            formData.taxes.map((tax, idx) => (
+                                                <div key={idx} className="flex gap-4 items-start p-4 border rounded-xl bg-white relative group">
+                                                    <div className="flex-1 space-y-4">
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                            <div className="space-y-2">
+                                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tax Name</label>
+                                                                <Input placeholder="e.g., GST, VAT" value={tax.name} onChange={(e) => updateTax(idx, "name", e.target.value)} className="h-10" />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Percentage (%)</label>
+                                                                <Input type="number" value={tax.percentage} onChange={(e) => updateTax(idx, "percentage", Number(e.target.value))} className="h-10" />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Reg. Number (Optional)</label>
+                                                                <Input placeholder="e.g., GSTIN..." value={tax.registrationNumber} onChange={(e) => updateTax(idx, "registrationNumber", e.target.value)} className="h-10 uppercase" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => removeTax(idx)} className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm" type="button">
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
+                                    </div>
+                                </div>
                                 <Tabs defaultValue="basic" className="w-full">
                                     <TabsList className="w-full h-16 bg-muted/50 rounded-none border-b p-0 flex">
                                         {formData.versions.map((ver) => (
