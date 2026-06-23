@@ -288,14 +288,25 @@ export default function PrasadamsPage() {
                                                 ? (prasadam.commissionType || "percentage")
                                                 : (vendorInfo?.commissionType || "percentage");
 
+                                            // Calculate total tax percentage
+                                            let totalTaxPercentage = 0;
+                                            if (prasadam.taxes && Array.isArray(prasadam.taxes)) {
+                                                prasadam.taxes.forEach((tax: any) => {
+                                                    totalTaxPercentage += Number(tax.percentage) || 0;
+                                                });
+                                            }
+
+                                            // Total Price inclusive of Taxes
+                                            const totalPriceNum = basePriceNum + (basePriceNum * totalTaxPercentage) / 100;
+
                                             let commission = 0;
-                                            if (commValue > 0 && basePriceNum > 0) {
+                                            if (commValue > 0 && totalPriceNum > 0) {
                                                 commission = commType === "percentage"
-                                                    ? Math.round((basePriceNum * commValue) / 100)
+                                                    ? Math.round((totalPriceNum * commValue) / 100)
                                                     : commValue;
                                             }
-                                            if (commission > basePriceNum) commission = basePriceNum;
-                                            const vendorPayout = Math.max(0, basePriceNum - commission);
+                                            if (commission > totalPriceNum) commission = totalPriceNum;
+                                            const vendorPayout = Math.max(0, totalPriceNum - commission);
 
                                             return (
                                                 <TableRow key={prasadam._id} className={`hover:bg-muted/30 ${!prasadam.isActive ? "opacity-50" : ""}`}>
@@ -354,19 +365,51 @@ export default function PrasadamsPage() {
                                                     <TableCell>
                                                         {basePriceNum > 0 ? (
                                                             prasadam.source !== "vendor" ? (
-                                                                <div className="space-y-0.5">
-                                                                    <div className="font-black text-gray-900 text-base">₹{basePriceNum}</div>
-                                                                    {prasadam.marketPrice && Number(prasadam.marketPrice) > basePriceNum && (
-                                                                        <div className="text-xs text-muted-foreground line-through">
-                                                                            ₹{Number(prasadam.marketPrice)}
+                                                                <Tooltip>
+                                                                    <TooltipTrigger asChild>
+                                                                        <div className="inline-flex items-center gap-1.5 cursor-help group">
+                                                                            <span className="font-black text-[#8D0303] text-base group-hover:underline">
+                                                                                ₹{totalPriceNum}
+                                                                                {totalTaxPercentage > 0 && <span className="text-xs text-muted-foreground ml-1">inc. GST</span>}
+                                                                            </span>
+                                                                            <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-[#8D0303]/10 group-hover:text-[#8D0303] transition-all">
+                                                                                <Info className="w-3 h-3" />
+                                                                            </div>
                                                                         </div>
-                                                                    )}
-                                                                </div>
+                                                                    </TooltipTrigger>
+                                                                    <TooltipContent side="right" className="p-4 w-64 bg-white border-2 border-gray-100 shadow-xl rounded-xl z-50">
+                                                                        <div className="space-y-3">
+                                                                            <div className="flex items-center font-bold text-gray-900 pb-2 border-b border-gray-100">
+                                                                                <TrendingUp className="w-4 h-4 mr-2 text-blue-600" />
+                                                                                Price Breakdown
+                                                                            </div>
+                                                                            <div className="space-y-2">
+                                                                                <div className="flex items-center justify-between text-sm">
+                                                                                    <span className="text-gray-500">Base Price:</span>
+                                                                                    <span className="font-bold text-gray-900">₹{basePriceNum}</span>
+                                                                                </div>
+                                                                                {totalTaxPercentage > 0 && (
+                                                                                    <div className="flex items-center justify-between text-sm">
+                                                                                        <span className="text-gray-500">Taxes ({totalTaxPercentage}%):</span>
+                                                                                        <span className="font-bold text-gray-900">+ ₹{(basePriceNum * totalTaxPercentage) / 100}</span>
+                                                                                    </div>
+                                                                                )}
+                                                                                <div className="pt-2 mt-2 border-t-2 border-blue-100 flex items-center justify-between">
+                                                                                    <span className="font-bold text-blue-700">Total Price:</span>
+                                                                                    <span className="text-xl font-black text-blue-700">₹{totalPriceNum}</span>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </TooltipContent>
+                                                                </Tooltip>
                                                             ) : (
                                                                 <Tooltip>
                                                                     <TooltipTrigger asChild>
                                                                         <div className="inline-flex items-center gap-1.5 cursor-help group">
-                                                                            <span className="font-black text-[#8D0303] text-base group-hover:underline">₹{basePriceNum}</span>
+                                                                            <span className="font-black text-[#8D0303] text-base group-hover:underline">
+                                                                                ₹{totalPriceNum}
+                                                                                {totalTaxPercentage > 0 && <span className="text-xs text-muted-foreground ml-1">inc. GST</span>}
+                                                                            </span>
                                                                             <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-[#8D0303]/10 group-hover:text-[#8D0303] transition-all">
                                                                                 <Info className="w-3 h-3" />
                                                                             </div>
@@ -380,8 +423,18 @@ export default function PrasadamsPage() {
                                                                             </div>
                                                                             <div className="space-y-2">
                                                                                 <div className="flex items-center justify-between text-sm">
-                                                                                    <span className="text-gray-500">Sell Price:</span>
+                                                                                    <span className="text-gray-500">Base Price:</span>
                                                                                     <span className="font-bold text-gray-900">₹{basePriceNum}</span>
+                                                                                </div>
+                                                                                {totalTaxPercentage > 0 && (
+                                                                                    <div className="flex items-center justify-between text-sm">
+                                                                                        <span className="text-gray-500">Taxes ({totalTaxPercentage}%):</span>
+                                                                                        <span className="font-bold text-gray-900">+ ₹{(basePriceNum * totalTaxPercentage) / 100}</span>
+                                                                                    </div>
+                                                                                )}
+                                                                                <div className="flex items-center justify-between text-sm">
+                                                                                    <span className="text-gray-500">Total Sell Price:</span>
+                                                                                    <span className="font-bold text-gray-900">₹{totalPriceNum}</span>
                                                                                 </div>
                                                                                 <div className="flex items-center justify-between text-sm text-[#8D0303]">
                                                                                     <span className="flex items-center gap-1">
@@ -502,7 +555,17 @@ export default function PrasadamsPage() {
                         <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1 mb-4">
                             <p><span className="font-medium">Prasadam:</span> {approvePrasadam?.title}</p>
                             <p><span className="font-medium">Vendor:</span> {approvePrasadam?.vendorName}</p>
-                            <p><span className="font-medium">Price:</span> ₹{approvePrasadam?.basePrice || "N/A"}</p>
+                            {(() => {
+                                let taxPct = 0;
+                                if (approvePrasadam?.taxes && Array.isArray(approvePrasadam.taxes)) {
+                                    approvePrasadam.taxes.forEach((tax: any) => { taxPct += Number(tax.percentage) || 0; });
+                                }
+                                const base = approvePrasadam?.basePrice || 0;
+                                const total = base + (base * taxPct) / 100;
+                                return (
+                                    <p><span className="font-medium">Total Price:</span> ₹{total} {taxPct > 0 && <span className="text-muted-foreground text-xs">(₹{base} + {taxPct}% GST)</span>}</p>
+                                );
+                            })()}
                         </div>
                         <div className="flex gap-4">
                             <div className="flex-1">

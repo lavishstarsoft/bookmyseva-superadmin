@@ -262,26 +262,78 @@ export default function KitsPage() {
                                                     ? (kit.commissionType || "percentage")
                                                     : (vendorInfo?.commissionType || "percentage");
 
+                                                // Calculate total tax percentage
+                                                let totalTaxPercentage = 0;
+                                                if (kit.taxes && Array.isArray(kit.taxes)) {
+                                                    kit.taxes.forEach((tax: any) => {
+                                                        totalTaxPercentage += Number(tax.percentage) || 0;
+                                                    });
+                                                }
+
+                                                // Total Price inclusive of Taxes
+                                                const totalPriceNum = priceNum + (priceNum * totalTaxPercentage) / 100;
+
                                                 let commission = 0;
                                                 if (commValue > 0) {
                                                     if (commType === "percentage") {
-                                                        commission = Math.round((priceNum * commValue) / 100);
+                                                        commission = Math.round((totalPriceNum * commValue) / 100);
                                                     } else {
                                                         commission = commValue;
                                                     }
                                                 }
-                                                if (commission > priceNum) commission = priceNum;
-                                                const earnings = priceNum - commission;
+                                                if (commission > totalPriceNum) commission = totalPriceNum;
+                                                const earnings = totalPriceNum - commission;
 
                                                 if (kit.source !== 'vendor') {
-                                                    return <span className="font-black text-gray-900 text-base">₹{priceNum}</span>;
+                                                    return (
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <div className="inline-flex items-center gap-1.5 cursor-help group">
+                                                                    <span className="font-black text-[#8D0303] text-base group-hover:underline">
+                                                                        ₹{totalPriceNum}
+                                                                        {totalTaxPercentage > 0 && <span className="text-xs text-muted-foreground ml-1">inc. GST</span>}
+                                                                    </span>
+                                                                    <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-[#8D0303]/10 group-hover:text-[#8D0303] transition-all">
+                                                                        <Info className="w-3 h-3" />
+                                                                    </div>
+                                                                </div>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent side="right" className="p-4 w-64 bg-white border-2 border-gray-100 shadow-xl rounded-xl z-50">
+                                                                <div className="space-y-3">
+                                                                    <div className="flex items-center font-bold text-gray-900 pb-2 border-b border-gray-100">
+                                                                        <TrendingUp className="w-4 h-4 mr-2 text-blue-600" />
+                                                                        Price Breakdown
+                                                                    </div>
+                                                                    <div className="space-y-2">
+                                                                        <div className="flex items-center justify-between text-sm">
+                                                                            <span className="text-gray-500">Base Price:</span>
+                                                                            <span className="font-bold text-gray-900">₹{priceNum}</span>
+                                                                        </div>
+                                                                        {totalTaxPercentage > 0 && (
+                                                                            <div className="flex items-center justify-between text-sm">
+                                                                                <span className="text-gray-500">Taxes ({totalTaxPercentage}%):</span>
+                                                                                <span className="font-bold text-gray-900">+ ₹{(priceNum * totalTaxPercentage) / 100}</span>
+                                                                            </div>
+                                                                        )}
+                                                                        <div className="pt-2 mt-2 border-t-2 border-blue-100 flex items-center justify-between">
+                                                                            <span className="font-bold text-blue-700">Total Price:</span>
+                                                                            <span className="text-xl font-black text-blue-700">₹{totalPriceNum}</span>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </TooltipContent>
+                                                        </Tooltip>
+                                                    );
                                                 }
 
                                                 return (
                                                     <Tooltip>
                                                         <TooltipTrigger asChild>
                                                             <div className="inline-flex items-center gap-1.5 cursor-help group">
-                                                                <span className="font-black text-[#8D0303] text-base group-hover:underline">₹{priceNum}</span>
+                                                                <span className="font-black text-[#8D0303] text-base group-hover:underline">
+                                                                    ₹{totalPriceNum}
+                                                                    {totalTaxPercentage > 0 && <span className="text-xs text-muted-foreground ml-1">inc. GST</span>}
+                                                                </span>
                                                                 <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 group-hover:bg-[#8D0303]/10 group-hover:text-[#8D0303] transition-all">
                                                                     <Info className="w-3 h-3" />
                                                                 </div>
@@ -295,8 +347,18 @@ export default function KitsPage() {
                                                                 </div>
                                                                 <div className="space-y-2">
                                                                     <div className="flex items-center justify-between text-sm">
-                                                                        <span className="text-gray-500">Sell Price:</span>
+                                                                        <span className="text-gray-500">Base Price:</span>
                                                                         <span className="font-bold text-gray-900">₹{priceNum}</span>
+                                                                    </div>
+                                                                    {totalTaxPercentage > 0 && (
+                                                                        <div className="flex items-center justify-between text-sm">
+                                                                            <span className="text-gray-500">Taxes ({totalTaxPercentage}%):</span>
+                                                                            <span className="font-bold text-gray-900">+ ₹{(priceNum * totalTaxPercentage) / 100}</span>
+                                                                        </div>
+                                                                    )}
+                                                                    <div className="flex items-center justify-between text-sm">
+                                                                        <span className="text-gray-500">Total Sell Price:</span>
+                                                                        <span className="font-bold text-gray-900">₹{totalPriceNum}</span>
                                                                     </div>
                                                                     <div className="flex items-center justify-between text-sm text-[#8D0303]">
                                                                         <span className="flex items-center gap-1">
@@ -411,7 +473,17 @@ export default function KitsPage() {
                         <div className="bg-muted/50 rounded-lg p-3 text-sm space-y-1">
                             <p><span className="font-medium">Kit:</span> {approveKit?.title}</p>
                             <p><span className="font-medium">Vendor:</span> {approveKit?.vendorName}</p>
-                            <p><span className="font-medium">Price:</span> ₹{approveKit?.offerPrice || approveKit?.marketPrice || "N/A"}</p>
+                            {(() => {
+                                let taxPct = 0;
+                                if (approveKit?.taxes && Array.isArray(approveKit.taxes)) {
+                                    approveKit.taxes.forEach((tax: any) => { taxPct += Number(tax.percentage) || 0; });
+                                }
+                                const base = approveKit?.offerPrice || approveKit?.marketPrice || 0;
+                                const total = base + (base * taxPct) / 100;
+                                return (
+                                    <p><span className="font-medium">Total Price:</span> ₹{total} {taxPct > 0 && <span className="text-muted-foreground text-xs">(₹{base} + {taxPct}% GST)</span>}</p>
+                                );
+                            })()}
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-semibold">Commission Type</label>
