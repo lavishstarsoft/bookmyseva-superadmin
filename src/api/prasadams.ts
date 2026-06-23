@@ -87,6 +87,7 @@ export interface Prasadam {
     shipping?: PrasadamShipping;
     deliveryConfig?: PrasadamDeliveryConfig;
     badges?: PrasadamBadges;
+    taxes?: any[];
     vendorId?: string | {
         _id: string;
         commissionType?: string;
