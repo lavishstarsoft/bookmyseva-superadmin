@@ -55,6 +55,13 @@ interface AdditionalOffering {
     image: string;
 }
 
+interface Tax {
+    id: string;
+    name: string;
+    percentage: number;
+    registrationNumber: string;
+}
+
 const SECTIONS = [
     { id: "basic", label: "Basic Info", icon: Info },
     { id: "media", label: "Images & Gallery", icon: ImageIcon },
@@ -78,6 +85,7 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         category: "pooja",
         duration: "",
         adminCommissionPercentage: 15,
+        taxes: [] as Tax[],
         availableDates: {
             startDate: "",
             endDate: ""
@@ -103,6 +111,7 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                 category: initialData.category || "pooja",
                 duration: initialData.duration || "",
                 adminCommissionPercentage: initialData.adminCommissionPercentage || 15,
+                taxes: initialData.taxes || [],
                 availableDates: {
                     startDate: initialData.availableDates?.startDate ? new Date(initialData.availableDates.startDate).toISOString().split('T')[0] : "",
                     endDate: initialData.availableDates?.endDate ? new Date(initialData.availableDates.endDate).toISOString().split('T')[0] : ""
@@ -216,6 +225,25 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         const updated = [...formData.additionalOfferings];
         updated.splice(index, 1);
         setFormData({ ...formData, additionalOfferings: updated });
+    };
+
+    const addTax = () => {
+        setFormData({
+            ...formData,
+            taxes: [...formData.taxes, { id: Date.now().toString(), name: '', percentage: 0, registrationNumber: '' }]
+        });
+    };
+
+    const updateTax = (index: number, field: string, value: any) => {
+        const updated = [...formData.taxes];
+        (updated[index] as any)[field] = value;
+        setFormData({ ...formData, taxes: updated });
+    };
+
+    const removeTax = (index: number) => {
+        const updated = [...formData.taxes];
+        updated.splice(index, 1);
+        setFormData({ ...formData, taxes: updated });
     };
 
     const scrollToSection = (id: string) => {
@@ -347,6 +375,44 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                             />
                                             <span className="text-sm font-bold text-gray-400">% (Cut)</span>
                                         </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <div className="flex items-center justify-between mb-4">
+                                        <label className="text-sm font-bold text-gray-700">Taxes & Fees Configuration</label>
+                                        <Button type="button" variant="outline" size="sm" onClick={addTax} className="h-8">
+                                            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Tax/Fee
+                                        </Button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {formData.taxes.length === 0 ? (
+                                            <div className="text-sm text-gray-500 italic p-4 border rounded-xl bg-gray-50 text-center">No taxes configured. (0% will be applied)</div>
+                                        ) : (
+                                            formData.taxes.map((tax, idx) => (
+                                                <div key={idx} className="flex gap-4 items-start p-4 border rounded-xl bg-white relative group">
+                                                    <div className="flex-1 space-y-4">
+                                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                            <div className="space-y-2">
+                                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tax Name</label>
+                                                                <Input placeholder="e.g., GST, VAT" value={tax.name} onChange={(e) => updateTax(idx, "name", e.target.value)} className="h-10" />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Percentage (%)</label>
+                                                                <Input type="number" value={tax.percentage} onChange={(e) => updateTax(idx, "percentage", Number(e.target.value))} className="h-10" />
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wider">Reg. Number (Optional)</label>
+                                                                <Input placeholder="e.g., GSTIN..." value={tax.registrationNumber} onChange={(e) => updateTax(idx, "registrationNumber", e.target.value)} className="h-10 uppercase" />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <button onClick={() => removeTax(idx)} className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm" type="button">
+                                                        <Trash2 className="w-3 h-3" />
+                                                    </button>
+                                                </div>
+                                            ))
+                                        )}
                                     </div>
                                 </div>
 
