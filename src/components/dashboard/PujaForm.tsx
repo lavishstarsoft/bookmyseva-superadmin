@@ -433,6 +433,7 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                             values={formData.images}
                                             onChange={(urls) => setFormData({ ...formData, images: urls })}
                                             className="grid grid-cols-2 gap-4"
+                                            aspectRatio={1}
                                         />
                                     </div>
                                 </div>

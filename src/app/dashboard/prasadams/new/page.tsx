@@ -375,7 +375,7 @@ export default function NewPrasadamPage() {
                             <CardTitle className="text-lg">Images</CardTitle>
                         </CardHeader>
                         <CardContent className="p-6">
-                            <MultiImageUpload values={images} onChange={setImages} maxImages={5} />
+                            <MultiImageUpload values={images} onChange={setImages} maxImages={5} aspectRatio={1} />
                         </CardContent>
                     </Card>
 

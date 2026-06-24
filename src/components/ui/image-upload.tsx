@@ -48,6 +48,22 @@ export const ImageUpload = ({
         const file = e.target.files?.[0]
         if (!file) return
 
+        const validateImage = (): Promise<{w: number, h: number} | null> => new Promise((resolve) => {
+            const img = new window.Image()
+            img.src = URL.createObjectURL(file)
+            img.onload = () => resolve({ w: img.width, h: img.height })
+            img.onerror = () => resolve(null)
+        })
+
+        if (aspectRatio === 1) {
+            const dims = await validateImage()
+            if (!dims || dims.w < 800 || dims.h < 800) {
+                toast.error("దయచేసి కనీసం 800x800 పిక్సెల్స్ ఉన్న ఇమేజ్ ని అప్‌లోడ్ చేయండి. (Please upload at least 800x800 px)")
+                e.target.value = ''
+                return
+            }
+        }
+
         // If aspectRatio is provided, open cropper
         if (aspectRatio) {
             const objectUrl = URL.createObjectURL(file)
@@ -149,7 +165,10 @@ export const ImageUpload = ({
                             ) : (
                                 <Upload className="w-6 h-6 mb-2 text-gray-500" />
                             )}
-                            <p className="text-xs text-gray-500 font-semibold">Click to upload</p>
+                            <p className="text-xs text-gray-500 font-semibold mb-1">Click to upload</p>
+                            {aspectRatio === 1 && (
+                                <p className="text-[10px] text-gray-400 text-center px-2">Min size: 800x800 px<br/>(1:1 Square)</p>
+                            )}
                         </div>
                         <input
                             type="file"
@@ -267,6 +286,22 @@ export const MultiImageUpload = ({
     const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
+
+        const validateImage = (): Promise<{w: number, h: number} | null> => new Promise((resolve) => {
+            const img = new window.Image()
+            img.src = URL.createObjectURL(file)
+            img.onload = () => resolve({ w: img.width, h: img.height })
+            img.onerror = () => resolve(null)
+        })
+
+        if (aspectRatio === 1) {
+            const dims = await validateImage()
+            if (!dims || dims.w < 800 || dims.h < 800) {
+                toast.error("దయచేసి కనీసం 800x800 పిక్సెల్స్ ఉన్న ఇమేజ్ ని అప్‌లోడ్ చేయండి. (Please upload at least 800x800 px)")
+                e.target.value = ''
+                return
+            }
+        }
 
         if (aspectRatio) {
             const objectUrl = URL.createObjectURL(file)
@@ -393,6 +428,9 @@ export const MultiImageUpload = ({
                             )}
                             <p className="text-[10px] text-gray-500 font-semibold">Add Image</p>
                             <p className="text-[9px] text-gray-400">{values.length}/{maxImages}</p>
+                            {aspectRatio === 1 && (
+                                <p className="text-[8px] text-gray-400 text-center px-1 leading-tight mt-1">Min: 800x800<br/>Square</p>
+                            )}
                         </div>
                         <input
                             type="file"
