@@ -73,6 +73,10 @@ export default function PujaBookingsPage() {
     const [deleting, setDeleting] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
+    // Bulk Delete
+    const [selectedBookings, setSelectedBookings] = useState<string[]>([]);
+    const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
+
     const handleEditSubmit = async () => {
         if (!editBooking) return;
         setEditing(true);
@@ -105,6 +109,7 @@ export default function PujaBookingsPage() {
             setBookings([]);
         } finally {
             setLoading(false);
+            setSelectedBookings([]);
         }
     };
 
@@ -149,6 +154,41 @@ export default function PujaBookingsPage() {
         } finally {
             setDeleting(false);
         }
+    };
+
+    const handleBulkDelete = async () => {
+        if (selectedBookings.length === 0) return;
+        setDeleting(true);
+        try {
+            await api.post("/puja-bookings/admin/bulk-delete", {
+                bookingIds: selectedBookings,
+                password: confirmPassword
+            });
+            toast.success(`${selectedBookings.length} bookings deleted successfully`);
+            setSelectedBookings([]);
+            setConfirmPassword("");
+            setShowBulkDeleteDialog(false);
+            fetchBookings();
+        } catch (err: any) {
+            const msg = err.response?.data?.message || "Failed to bulk delete bookings";
+            toast.error(msg);
+        } finally {
+            setDeleting(false);
+        }
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedBookings.length === bookings.length && bookings.length > 0) {
+            setSelectedBookings([]);
+        } else {
+            setSelectedBookings(bookings.map(b => b._id));
+        }
+    };
+
+    const toggleSelect = (id: string) => {
+        setSelectedBookings(prev => 
+            prev.includes(id) ? prev.filter(bId => bId !== id) : [...prev, id]
+        );
     };
 
     const statusBadge = (status: string) => {
@@ -196,6 +236,19 @@ export default function PujaBookingsPage() {
                     <h1 className="text-3xl font-bold tracking-tight">Puja Bookings</h1>
                     <p className="text-muted-foreground mt-1 text-sm">Manage all puja bookings, assignments, and payments.</p>
                 </div>
+                {selectedBookings.length > 0 && (
+                    <Button 
+                        variant="destructive" 
+                        onClick={() => {
+                            setConfirmPassword("");
+                            setShowPassword(false);
+                            setShowBulkDeleteDialog(true);
+                        }}
+                    >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Delete Selected ({selectedBookings.length})
+                    </Button>
+                )}
             </div>
 
             {/* Stats */}
@@ -271,6 +324,14 @@ export default function PujaBookingsPage() {
                     <Table>
                         <TableHeader className="bg-muted/50">
                             <TableRow>
+                                <TableHead className="w-12">
+                                    <input 
+                                        type="checkbox" 
+                                        className="rounded border-gray-300 w-4 h-4"
+                                        checked={selectedBookings.length === bookings.length && bookings.length > 0}
+                                        onChange={toggleSelectAll}
+                                    />
+                                </TableHead>
                                 <TableHead>Booking ID</TableHead>
                                 <TableHead>Puja</TableHead>
                                 <TableHead>User</TableHead>
@@ -288,6 +349,14 @@ export default function PujaBookingsPage() {
                                 <TableRow><TableCell colSpan={10} className="h-40 text-center"><div className="flex flex-col items-center justify-center gap-2"><Loader2 className="w-8 h-8 animate-spin text-[#8D0303]" /><p className="text-muted-foreground">Loading bookings...</p></div></TableCell></TableRow>
                             ) : bookings.map((booking) => (
                                 <TableRow key={booking._id} className="hover:bg-muted/30">
+                                    <TableCell>
+                                        <input 
+                                            type="checkbox" 
+                                            className="rounded border-gray-300 w-4 h-4 cursor-pointer"
+                                            checked={selectedBookings.includes(booking._id)}
+                                            onChange={() => toggleSelect(booking._id)}
+                                        />
+                                    </TableCell>
                                     <TableCell>
                                         <span className="font-mono text-xs font-bold text-[#8D0303]">{booking.bookingId}</span>
                                     </TableCell>
@@ -590,6 +659,53 @@ export default function PujaBookingsPage() {
                         <Button variant="outline" onClick={() => { setDeleteBookingId(null); setConfirmPassword(""); setShowPassword(false); }} disabled={deleting}>Cancel</Button>
                         <Button 
                             onClick={handleDeleteBooking} 
+                            disabled={deleting || !confirmPassword} 
+                            variant="destructive"
+                        >
+                            {deleting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+                            Permanently Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Bulk Delete Dialog */}
+            <Dialog open={showBulkDeleteDialog} onOpenChange={setShowBulkDeleteDialog}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-red-600">
+                            <Trash2 className="w-5 h-5" />
+                            Delete Selected Bookings
+                        </DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to permanently delete {selectedBookings.length} bookings? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-2">
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold">Secret Admin Password</label>
+                            <div className="relative">
+                                <Input
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Enter secret password to delete"
+                                    value={confirmPassword}
+                                    onChange={(e) => setConfirmPassword(e.target.value)}
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-gray-700"
+                                >
+                                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setShowBulkDeleteDialog(false)} disabled={deleting}>Cancel</Button>
+                        <Button 
+                            onClick={handleBulkDelete} 
                             disabled={deleting || !confirmPassword} 
                             variant="destructive"
                         >

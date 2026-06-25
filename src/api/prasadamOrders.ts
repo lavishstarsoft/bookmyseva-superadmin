@@ -70,5 +70,12 @@ export const prasadamOrdersApi = {
     });
     return response.data;
   },
+  bulkDelete: async (orderIds: string[], password?: string) => {
+    const response = await api.post<{ success: boolean; message: string }>(`prasadam-orders/bulk-delete`, {
+      orderIds,
+      password
+    });
+    return response.data;
+  },
 };
 

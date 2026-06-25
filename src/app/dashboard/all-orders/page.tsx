@@ -5,6 +5,7 @@ import { ExternalLink, Loader2, PencilLine, RefreshCw, Search, ShoppingCart, Tra
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Table,
   TableBody,
@@ -66,6 +67,10 @@ export default function AllOrdersPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Bulk Delete
+  const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+  const [showBulkDeleteDialog, setShowBulkDeleteDialog] = useState(false);
 
   const fetchAllOrders = async () => {
     setLoading(true);
@@ -197,6 +202,43 @@ export default function AllOrdersPage() {
     );
   }, [orders, query]);
 
+  const handleSelectAll = (checked: boolean) => {
+    setSelectedOrders(checked ? filtered.map(o => o._id) : []);
+  };
+
+  const handleSelectOrder = (id: string, checked: boolean) => {
+    setSelectedOrders(prev => 
+      checked ? [...prev, id] : prev.filter(oId => oId !== id)
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedOrders.length === 0) return;
+    setDeleting(true);
+    try {
+      const kitIds = selectedOrders.filter(id => orders.find(o => o._id === id)?.type === "kit");
+      const prasadamIds = selectedOrders.filter(id => orders.find(o => o._id === id)?.type === "prasadam");
+
+      if (kitIds.length > 0) {
+        await kitOrdersApi.bulkDelete(kitIds, confirmPassword);
+      }
+      if (prasadamIds.length > 0) {
+        await prasadamOrdersApi.bulkDelete(prasadamIds, confirmPassword);
+      }
+
+      toast.success(`${selectedOrders.length} orders deleted successfully`);
+      setSelectedOrders([]);
+      setShowBulkDeleteDialog(false);
+      setConfirmPassword("");
+      fetchAllOrders();
+    } catch (err: any) {
+      const msg = err.response?.data?.message || "Failed to delete selected orders";
+      toast.error(msg);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -212,8 +254,8 @@ export default function AllOrdersPage() {
         </Button>
       </div>
 
-      <div className="bg-white rounded-xl border p-4 shadow-sm">
-        <div className="relative">
+      <div className="bg-white rounded-xl border p-4 shadow-sm flex flex-col md:flex-row items-center gap-4">
+        <div className="relative flex-1 w-full">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Search by order ID, customer, phone, product..."
@@ -222,6 +264,27 @@ export default function AllOrdersPage() {
             onChange={(e) => setQuery(e.target.value)}
           />
         </div>
+        {selectedOrders.length > 0 && (
+          <div className="flex items-center gap-2 w-full md:w-auto shrink-0 animate-in fade-in zoom-in-95 duration-200">
+            <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
+              {selectedOrders.length} selected
+            </span>
+            <Button
+              variant="destructive"
+              className="gap-1 shadow-sm shrink-0"
+              onClick={() => setShowBulkDeleteDialog(true)}
+            >
+              <Trash2 className="w-4 h-4" /> Delete Selected
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-1 shrink-0"
+              onClick={() => setSelectedOrders(filtered.map(o => o._id))}
+            >
+              Select All
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-xl border shadow-sm overflow-hidden">
@@ -236,6 +299,14 @@ export default function AllOrdersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-12">
+                    <Checkbox
+                      checked={filtered.length > 0 && selectedOrders.length === filtered.length}
+                      onCheckedChange={handleSelectAll}
+                      aria-label="Select all"
+                      className="data-[state=checked]:bg-[#8D0303] data-[state=checked]:border-[#8D0303]"
+                    />
+                  </TableHead>
                   <TableHead>Order ID</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Customer</TableHead>
@@ -250,7 +321,18 @@ export default function AllOrdersPage() {
               </TableHeader>
               <TableBody>
                 {filtered.map((order) => (
-                  <TableRow key={`${order.type}-${order._id}`}>
+                  <TableRow 
+                    key={`${order.type}-${order._id}`}
+                    className={selectedOrders.includes(order._id) ? "bg-[#8D0303]/[0.02] border-l-2 border-l-[#8D0303]" : ""}
+                  >
+                    <TableCell>
+                      <Checkbox
+                        checked={selectedOrders.includes(order._id)}
+                        onCheckedChange={(checked) => handleSelectOrder(order._id, !!checked)}
+                        aria-label="Select order"
+                        className="data-[state=checked]:bg-[#8D0303] data-[state=checked]:border-[#8D0303]"
+                      />
+                    </TableCell>
                     <TableCell className="font-mono text-xs font-bold text-[#8D0303]">{order.orderId}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="capitalize">
@@ -365,16 +447,32 @@ export default function AllOrdersPage() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={!!deleteOrderId} onOpenChange={() => { setDeleteOrderId(null); setDeleteOrderType(null); setConfirmPassword(""); setShowPassword(false); }}>
+      <Dialog 
+        open={!!deleteOrderId || showBulkDeleteDialog} 
+        onOpenChange={(open) => { 
+          if (!open) {
+            setDeleteOrderId(null); 
+            setDeleteOrderType(null); 
+            setShowBulkDeleteDialog(false);
+            setConfirmPassword(""); 
+            setShowPassword(false); 
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-red-600">
               <Trash2 className="w-5 h-5" />
-              Delete Order
+              {showBulkDeleteDialog ? `Delete ${selectedOrders.length} Orders` : "Delete Order"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <p className="text-sm text-muted-foreground">Are you sure you want to permanently delete this order? This action cannot be undone.</p>
+            <p className="text-sm text-muted-foreground">
+              {showBulkDeleteDialog 
+                ? `Are you sure you want to permanently delete these ${selectedOrders.length} orders? This action cannot be undone.`
+                : "Are you sure you want to permanently delete this order? This action cannot be undone."
+              }
+            </p>
             <div className="space-y-2">
               <Label>Secret Admin Password</Label>
               <div className="relative">
@@ -396,9 +494,15 @@ export default function AllOrdersPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setDeleteOrderId(null); setDeleteOrderType(null); setConfirmPassword(""); setShowPassword(false); }} disabled={deleting}>Cancel</Button>
+            <Button variant="outline" onClick={() => { 
+              setDeleteOrderId(null); 
+              setDeleteOrderType(null); 
+              setShowBulkDeleteDialog(false);
+              setConfirmPassword(""); 
+              setShowPassword(false); 
+            }} disabled={deleting}>Cancel</Button>
             <Button 
-              onClick={handleDeleteOrder} 
+              onClick={showBulkDeleteDialog ? handleBulkDelete : handleDeleteOrder} 
               disabled={deleting || !confirmPassword} 
               variant="destructive"
             >
