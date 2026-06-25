@@ -57,15 +57,25 @@ export const ImageUpload = ({
 
         if (aspectRatio === 1) {
             const dims = await validateImage()
-            if (!dims || dims.w < 800 || dims.h < 800) {
+            if (!dims) {
+                toast.error("Invalid image")
+                e.target.value = ''
+                return
+            }
+            if (dims.w !== dims.h) {
+                toast.error("దయచేసి 1:1 రేషియో (Square) ఉన్న ఇమేజ్ ని మాత్రమే అప్‌లోడ్ చేయండి. ఉదాహరణకు: 800x800, 1024x1024")
+                e.target.value = ''
+                return
+            }
+            if (dims.w < 800 || dims.h < 800) {
                 toast.error("దయచేసి కనీసం 800x800 పిక్సెల్స్ ఉన్న ఇమేజ్ ని అప్‌లోడ్ చేయండి. (Please upload at least 800x800 px)")
                 e.target.value = ''
                 return
             }
         }
 
-        // If aspectRatio is provided, open cropper
-        if (aspectRatio) {
+        // If aspectRatio is provided and NOT 1, open cropper
+        if (aspectRatio && aspectRatio !== 1) {
             const objectUrl = URL.createObjectURL(file)
             setCropImageSrc(objectUrl)
             setIsCropping(true)
@@ -296,14 +306,24 @@ export const MultiImageUpload = ({
 
         if (aspectRatio === 1) {
             const dims = await validateImage()
-            if (!dims || dims.w < 800 || dims.h < 800) {
+            if (!dims) {
+                toast.error("Invalid image")
+                e.target.value = ''
+                return
+            }
+            if (dims.w !== dims.h) {
+                toast.error("దయచేసి 1:1 రేషియో (Square) ఉన్న ఇమేజ్ ని మాత్రమే అప్‌లోడ్ చేయండి. ఉదాహరణకు: 800x800, 1024x1024")
+                e.target.value = ''
+                return
+            }
+            if (dims.w < 800 || dims.h < 800) {
                 toast.error("దయచేసి కనీసం 800x800 పిక్సెల్స్ ఉన్న ఇమేజ్ ని అప్‌లోడ్ చేయండి. (Please upload at least 800x800 px)")
                 e.target.value = ''
                 return
             }
         }
 
-        if (aspectRatio) {
+        if (aspectRatio && aspectRatio !== 1) {
             const objectUrl = URL.createObjectURL(file)
             setCropImageSrc(objectUrl)
             setIsCropping(true)

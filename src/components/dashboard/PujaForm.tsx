@@ -416,14 +416,14 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                     <div className="space-y-4">
                                         <div className="flex items-center justify-between">
                                             <label className="text-xs font-black uppercase tracking-widest text-gray-400">Primary Hero Image</label>
-                                            <span className="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-bold">Recommended: 16:9</span>
+                                            <span className="text-[10px] text-[#8D0303] bg-red-50 px-2 py-0.5 rounded-full font-bold">Required: 1:1</span>
                                         </div>
-                                        <div className="aspect-[16/9] w-full relative">
+                                        <div className="aspect-square w-1/2 relative">
                                             <ImageUpload
                                                 value={formData.image}
                                                 onChange={(url) => setFormData({ ...formData, image: url })}
-                                                aspectRatio={16/9}
-                                                className="h-full w-full rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 hover:border-emerald-200"
+                                                aspectRatio={1}
+                                                className="h-full w-full rounded-2xl overflow-hidden border-2 border-dashed border-gray-200 hover:border-red-200"
                                             />
                                         </div>
                                     </div>
