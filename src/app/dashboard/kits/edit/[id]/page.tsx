@@ -102,12 +102,14 @@ export default function EditKitPage() {
 
     const [shipping, setShipping] = useState<KitShipping>({
         freeShipping: true,
+        freeShippingAbove: 500,
+        shippingCharge: 50,
         shippingLabel: 'Free Shipping',
         deliveryText: 'Delivery in 2-3 days',
         showShipping: true,
     });
 
-    const updateShipping = (key: keyof KitShipping, value: string | boolean) => {
+    const updateShipping = (key: keyof KitShipping, value: string | boolean | number) => {
         setShipping(prev => ({ ...prev, [key]: value }));
     };
 
@@ -192,6 +194,8 @@ export default function EditKitPage() {
                 if (kit.shipping) {
                     setShipping({
                         freeShipping: kit.shipping.freeShipping ?? true,
+                        freeShippingAbove: kit.shipping.freeShippingAbove ?? 500,
+                        shippingCharge: kit.shipping.shippingCharge ?? 50,
                         shippingLabel: kit.shipping.shippingLabel || 'Free Shipping',
                         deliveryText: kit.shipping.deliveryText || 'Delivery in 2-3 days',
                         showShipping: kit.shipping.showShipping ?? true,
@@ -1009,6 +1013,33 @@ export default function EditKitPage() {
                                             className="data-[state=checked]:bg-[#8D0303] scale-90"
                                         />
                                     </div>
+
+                                    {!shipping.freeShipping && (
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Shipping Charge (₹)</label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="e.g., 50"
+                                                    value={shipping.shippingCharge || ''}
+                                                    onChange={(e) => updateShipping('shippingCharge', Number(e.target.value))}
+                                                    className="h-10 border-gray-200 font-medium"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Free Shipping Above (₹)</label>
+                                                <Input
+                                                    type="number"
+                                                    min="0"
+                                                    placeholder="e.g., 500"
+                                                    value={shipping.freeShippingAbove || ''}
+                                                    onChange={(e) => updateShipping('freeShippingAbove', Number(e.target.value))}
+                                                    className="h-10 border-gray-200 font-medium"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div className="space-y-2">
                                         <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest block">Shipping Label</label>

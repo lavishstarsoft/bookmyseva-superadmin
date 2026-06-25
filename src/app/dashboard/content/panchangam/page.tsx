@@ -45,6 +45,9 @@ const panchangamSchema = z.object({
     sunset: z.string().min(1, "Sunset is required"),
     moonrise: z.string().optional(),
     rahu: z.string().min(1, "Rahu Kalam is required"),
+    yamagandam: z.string().optional(),
+    nakshatraVarjam: z.string().optional(),
+    abhijitMuhurtam: z.string().optional(),
     auspiciousTime: z.string().optional(),
     specialEventName: z.string().optional(),
     specialEventDeity: z.string().optional(),
@@ -88,6 +91,9 @@ export default function PanchangamPage() {
             sunset: "",
             moonrise: "",
             rahu: "",
+            yamagandam: "",
+            nakshatraVarjam: "",
+            abhijitMuhurtam: "",
             auspiciousTime: "",
             specialEventName: "",
             specialEventDeity: "",
@@ -127,6 +133,9 @@ export default function PanchangamPage() {
                     sunset: response.data.sunset,
                     moonrise: response.data.moonrise,
                     rahu: response.data.rahu,
+                    yamagandam: response.data.yamagandam || "",
+                    nakshatraVarjam: response.data.nakshatraVarjam || "",
+                    abhijitMuhurtam: response.data.abhijitMuhurtam || "",
                     auspiciousTime: response.data.auspiciousTime,
                     specialEventName: response.data.specialEventName || "",
                     specialEventDeity: response.data.specialEventDeity || "",
@@ -154,6 +163,9 @@ export default function PanchangamPage() {
                     sunset: "",
                     moonrise: "",
                     rahu: "",
+                    yamagandam: "",
+                    nakshatraVarjam: "",
+                    abhijitMuhurtam: "",
                     auspiciousTime: "",
                     specialEventName: "",
                     specialEventDeity: "",
@@ -411,12 +423,51 @@ export default function PanchangamPage() {
                                         />
                                         <FormField
                                             control={form.control}
+                                            name="yamagandam"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-red-600 font-semibold">Yamagandam</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="e.g. 12:00 PM - 01:30 PM" {...field} className="border-red-200 bg-red-50 focus-visible:ring-red-500" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="nakshatraVarjam"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-red-600 font-semibold">Nakshatra Varjam</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="e.g. 02:00 PM - 03:30 PM" {...field} className="border-red-200 bg-red-50 focus-visible:ring-red-500" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
                                             name="auspiciousTime"
                                             render={({ field }) => (
                                                 <FormItem>
                                                     <FormLabel className="text-green-600 font-semibold">Shubh Muhurat (Auspicious)</FormLabel>
                                                     <FormControl>
                                                         <Input placeholder="e.g. 09:15 AM - 10:45 AM" {...field} className="border-green-200 bg-green-50 focus-visible:ring-green-500" />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+                                        <FormField
+                                            control={form.control}
+                                            name="abhijitMuhurtam"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel className="text-green-600 font-semibold">Abhijit Muhurtam (Auspicious)</FormLabel>
+                                                    <FormControl>
+                                                        <Input placeholder="e.g. 11:45 AM - 12:30 PM" {...field} className="border-green-200 bg-green-50 focus-visible:ring-green-500" />
                                                     </FormControl>
                                                     <FormMessage />
                                                 </FormItem>

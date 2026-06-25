@@ -24,6 +24,8 @@ export interface KitBadges {
 
 export interface KitShipping {
     freeShipping: boolean;
+    freeShippingAbove?: number;
+    shippingCharge?: number;
     shippingLabel: string;
     deliveryText: string;
     showShipping: boolean;
