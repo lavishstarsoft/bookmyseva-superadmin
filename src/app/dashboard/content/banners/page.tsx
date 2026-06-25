@@ -38,8 +38,14 @@ const bannerSchema = z.object({
     mobileImage: z.string().min(1, "Mobile Image is required"),
 })
 
+const statSchema = z.object({
+    value: z.string().min(1, "Value is required"),
+    label: z.string().min(1, "Label is required"),
+})
+
 const bannersFormSchema = z.object({
-    banners: z.array(bannerSchema)
+    banners: z.array(bannerSchema),
+    stats: z.array(statSchema),
 })
 
 type BannersValues = z.infer<typeof bannersFormSchema>
@@ -57,7 +63,8 @@ export default function BannersPage() {
     const form = useForm<BannersValues>({
         resolver: zodResolver(bannersFormSchema),
         defaultValues: {
-            banners: []
+            banners: [],
+            stats: []
         },
     })
 
@@ -66,16 +73,24 @@ export default function BannersPage() {
         name: "banners"
     })
 
+    const { fields: statFields, append: appendStat, remove: removeStat } = useFieldArray({
+        control: form.control,
+        name: "stats"
+    })
+
     // Fetch Initial Data
     useEffect(() => {
         const fetchData = async () => {
             try {
                 const response = await api.get(`/content/home-hero`)
-                if (response.data && response.data.content && Array.isArray(response.data.content.slides)) {
-                    form.reset({ banners: response.data.content.slides })
+                if (response.data && response.data.content) {
+                    form.reset({ 
+                        banners: Array.isArray(response.data.content.slides) ? response.data.content.slides : [],
+                        stats: Array.isArray(response.data.content.stats) ? response.data.content.stats : []
+                    })
                 } else {
                     // Initialize with some default if empty or load fallback logic
-                    form.reset({ banners: [] })
+                    form.reset({ banners: [], stats: [] })
                 }
             } catch (error) {
                 // If 404, it might just mean no config exists yet, which is fine
@@ -120,7 +135,7 @@ export default function BannersPage() {
         formData.append("image", croppedBlob, "cropped-image.jpg")
 
         try {
-            const uploadResponse = await api.post("/upload/upload", formData, {
+            const uploadResponse = await api.post("/upload", formData, {
                 headers: { "Content-Type": "multipart/form-data" }
             })
             const url = uploadResponse.data.url
@@ -147,7 +162,8 @@ export default function BannersPage() {
                 type: "slider",
                 title: "Home Page Hero Slider",
                 content: {
-                    slides: data.banners
+                    slides: data.banners,
+                    stats: data.stats
                 }
             })
             toast.success("Banners saved successfully")
@@ -174,14 +190,14 @@ export default function BannersPage() {
                 <Button
                     onClick={() => append({
                         id: Date.now(),
-                        badge: "🙏 Welcome",
-                        title: "New Banner",
-                        subtitle: "Subtitle here",
-                        description: "Description goes here",
-                        primaryCTA: "Explore",
-                        primaryLink: "/",
-                        secondaryCTA: "Learn More",
-                        secondaryLink: "/",
+                        badge: "",
+                        title: "",
+                        subtitle: "",
+                        description: "",
+                        primaryCTA: "",
+                        primaryLink: "",
+                        secondaryCTA: "",
+                        secondaryLink: "",
                         desktopImage: "",
                         mobileImage: ""
                     })}
@@ -252,7 +268,7 @@ export default function BannersPage() {
                                                 Slide {index + 1}
                                             </div>
                                             <CardTitle className="text-lg">
-                                                {form.watch(`banners.${index}.title`) || "Untitled Banner"}
+                                                {form.watch("banners")?.[index]?.title || "Untitled Banner"}
                                             </CardTitle>
                                         </div>
                                     </CardHeader>
@@ -466,7 +482,53 @@ export default function BannersPage() {
                         </div>
                     )}
 
-                    {fields.length > 0 && (
+                    <Separator className="my-8" />
+
+                    {/* Stats Section */}
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-xl font-semibold text-[#8D0303]">Trust Stats</h4>
+                            <Button type="button" variant="outline" size="sm" onClick={() => appendStat({ value: "", label: "" })}>
+                                <Plus className="mr-2 h-4 w-4" /> Add Stat
+                            </Button>
+                        </div>
+                        {statFields.map((field, index) => (
+                            <div key={field.id} className="flex items-center gap-4 bg-muted/10 p-4 rounded-lg border shadow-sm">
+                                <FormField
+                                    control={form.control}
+                                    name={`stats.${index}.value`}
+                                    render={({ field }) => (
+                                        <FormItem className="flex-1">
+                                            <FormLabel>Value (e.g. 10K+)</FormLabel>
+                                            <FormControl><Input {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <FormField
+                                    control={form.control}
+                                    name={`stats.${index}.label`}
+                                    render={({ field }) => (
+                                        <FormItem className="flex-1">
+                                            <FormLabel>Label (e.g. Poojas)</FormLabel>
+                                            <FormControl><Input {...field} /></FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="button" variant="ghost" size="icon" onClick={() => removeStat(index)} className="mt-8 text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            </div>
+                        ))}
+                        {statFields.length === 0 && (
+                            <div className="text-center py-8 bg-muted/20 rounded-xl border border-dashed border-muted-foreground/30 text-muted-foreground text-sm">
+                                No trust stats added yet.
+                            </div>
+                        )}
+                    </div>
+
+                    {(fields.length > 0 || statFields.length > 0) && (
                         <div className="sticky bottom-4 z-50 flex justify-end bg-background/80 backdrop-blur p-4 rounded-xl border shadow-lg">
                             <Button type="submit" size="lg" className="bg-[#8D0303] hover:bg-[#720202] text-white shadow-md shadow-red-900/20" disabled={isSaving}>
                                 {isSaving ? (

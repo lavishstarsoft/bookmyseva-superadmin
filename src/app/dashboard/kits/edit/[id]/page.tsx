@@ -116,7 +116,7 @@ export default function EditKitPage() {
             { id: 'morning', label: '8 AM – 11 AM', active: true },
             { id: 'midday', label: '11 AM – 2 PM', active: true },
             { id: 'afternoon', label: '2 PM – 5 PM', active: true },
-        ],
+        ],  
         leadDays: 0,
         maxAdvanceDays: 30,
     });
