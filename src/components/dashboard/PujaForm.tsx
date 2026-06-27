@@ -572,6 +572,7 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                                             value={item.image}
                                                                             onChange={(url) => updateKitItem(idx, itemIdx, "image", url)}
                                                                             aspectRatio={1}
+                                                                            className="w-full h-full"
                                                                         />
                                                                     </div>
                                                                     <div className="flex-1 space-y-2">
@@ -727,6 +728,7 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                             value={opt.image}
                                                             onChange={(url) => updatePrasadam(idx, "image", url)}
                                                             aspectRatio={1}
+                                                            className="w-full h-full"
                                                         />
                                                     </div>
                                                     <div className="flex-1 space-y-3">
@@ -801,6 +803,7 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                             value={offering.image}
                                                             onChange={(url) => updateAdditionalOffering(idx, "image", url)}
                                                             aspectRatio={1}
+                                                            className="w-full h-full"
                                                         />
                                                     </div>
                                                     <div className="flex-1 space-y-3">
