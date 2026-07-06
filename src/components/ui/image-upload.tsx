@@ -25,6 +25,7 @@ interface ImageUploadProps {
     disabled?: boolean
     className?: string
     aspectRatio?: number // If provided, enables cropping
+    hideText?: boolean
 }
 
 export const ImageUpload = ({
@@ -32,7 +33,8 @@ export const ImageUpload = ({
     onChange,
     disabled,
     className,
-    aspectRatio
+    aspectRatio,
+    hideText
 }: ImageUploadProps) => {
     const [isUploading, setIsUploading] = useState(false)
 
@@ -142,7 +144,7 @@ export const ImageUpload = ({
     return (
         <div className={className}>
             <div className="flex items-center justify-center w-full h-full relative overflow-hidden rounded-lg">
-                {value ? (
+                {value && (value.startsWith("http") || value.startsWith("/")) ? (
                     <>
                         <div className="volume-off absolute top-2 right-2 z-10">
                             <Button
@@ -171,13 +173,17 @@ export const ImageUpload = ({
                     <label className="flex flex-col items-center justify-center w-full h-full cursor-pointer hover:bg-gray-50 transition-colors bg-gray-50/50">
                         <div className="flex flex-col items-center justify-center pt-5 pb-6">
                             {isUploading ? (
-                                <Loader2 className="w-8 h-8 mb-4 text-gray-500 animate-spin" />
+                                <Loader2 className={`text-gray-500 animate-spin ${hideText ? 'w-5 h-5 mb-0' : 'w-8 h-8 mb-4'}`} />
                             ) : (
-                                <Upload className="w-6 h-6 mb-2 text-gray-500" />
+                                <Upload className={`text-gray-500 ${hideText ? 'w-5 h-5 mb-0' : 'w-6 h-6 mb-2'}`} />
                             )}
-                            <p className="text-xs text-gray-500 font-semibold mb-1">Click to upload</p>
-                            {aspectRatio === 1 && (
-                                <p className="text-[10px] text-gray-400 text-center px-2">Min size: 800x800 px<br/>(1:1 Square)</p>
+                            {!hideText && (
+                                <>
+                                    <p className="text-xs text-gray-500 font-semibold mb-1">Click to upload</p>
+                                    {aspectRatio === 1 && (
+                                        <p className="text-[10px] text-gray-400 text-center px-2">Min size: 800x800 px<br/>(1:1 Square)</p>
+                                    )}
+                                </>
                             )}
                         </div>
                         <input

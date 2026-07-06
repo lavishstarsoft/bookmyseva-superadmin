@@ -196,6 +196,24 @@ const routes = [
         isHeader: true,
     },
     {
+        label: "Mobile App Design",
+        icon: LayoutTemplate,
+        href: "#",
+        color: "text-indigo-500",
+        submenu: [
+            {
+                label: "UI Builder (Nav & Grid)",
+                href: "/dashboard/content/mobile-app-design",
+                icon: LayoutTemplate
+            },
+            {
+                label: "Home Sections (Dynamic)",
+                href: "/dashboard/content/mobile-app-sections",
+                icon: LayoutTemplate
+            }
+        ]
+    },
+    {
         label: "Site Management",
         icon: LayoutTemplate,
         href: "#",
