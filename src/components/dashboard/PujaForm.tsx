@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { 
     ArrowLeft, Save, Plus, Loader2, Trash2, 
     Info, Image as ImageIcon, IndianRupee, 
-    Gift, Utensils, LayoutGrid, CheckCircle2, Clock, Calendar 
+    Gift, Utensils, LayoutGrid, CheckCircle2, Clock, Calendar, Package, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,9 +17,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { ImageUpload, MultiImageUpload } from "@/components/ui/image-upload";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import api from "@/lib/axios";
 import { toast } from "sonner";
+import { kitsApi, Kit } from "@/api/kits";
 
 interface KitItem {
     icon: string;
@@ -68,13 +70,45 @@ const SECTIONS = [
     { id: "pricing", label: "Pricing Tiers", icon: IndianRupee },
     { id: "availability", label: "Availability Setup", icon: Calendar },
     { id: "prasadam", label: "Prasadam Setup", icon: Utensils },
+    { id: "vendor-products", label: "Vendor Products", icon: Package },
     { id: "addons", label: "Additional Offerings", icon: Gift },
 ];
+
+function normalizeLinkedIds(raw: any): string[] {
+    if (!Array.isArray(raw)) return [];
+    return [...new Set(
+        raw
+            .map((item) => {
+                if (!item) return null;
+                if (typeof item === "string") return item;
+                if (typeof item === "object" && item._id) return String(item._id);
+                return String(item);
+            })
+            .filter(Boolean)
+    )];
+}
+
+function getKitDisplayPrice(kit: Kit): number | null {
+    if (kit.offerPrice !== undefined && kit.offerPrice !== null && kit.offerPrice !== "") {
+        return Number(kit.offerPrice);
+    }
+    if (kit.marketPrice !== undefined && kit.marketPrice !== null && kit.marketPrice !== "") {
+        return Number(kit.marketPrice);
+    }
+    const activePlan = kit.pricingPlans?.find((p) => p.active);
+    if (activePlan?.price !== undefined && activePlan.price !== "") {
+        return Number(activePlan.price);
+    }
+    return null;
+}
 
 export default function PujaForm({ initialData }: { initialData?: any }) {
     const router = useRouter();
     const [saving, setSaving] = useState(false);
     const [activeSection, setActiveSection] = useState("basic");
+    const [vendorKits, setVendorKits] = useState<Kit[]>([]);
+    const [loadingVendorKits, setLoadingVendorKits] = useState(true);
+    const [vendorProductSearch, setVendorProductSearch] = useState("");
 
     const [formData, setFormData] = useState({
         title: "",
@@ -97,7 +131,8 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
             { id: "super_premium", title: "Super Premium", price: 0, description: "", method: "Agama + Veda Ashirvadam", rating: 5, includes: [], kitItems: [] },
         ] as PujaVersion[],
         prasadamOptions: [] as PrasadamOption[],
-        additionalOfferings: [] as AdditionalOffering[]
+        additionalOfferings: [] as AdditionalOffering[],
+        linkedVendorKits: [] as string[]
     });
 
     useEffect(() => {
@@ -119,10 +154,55 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                 timeSlots: initialData.timeSlots || [],
                 versions: initialData.versions?.length > 0 ? initialData.versions : formData.versions,
                 prasadamOptions: initialData.prasadamOptions || [],
-                additionalOfferings: initialData.additionalOfferings || []
+                additionalOfferings: initialData.additionalOfferings || [],
+                linkedVendorKits: normalizeLinkedIds(initialData.linkedVendorKits)
             });
         }
     }, [initialData]);
+
+    useEffect(() => {
+        let cancelled = false;
+        const loadVendorKits = async () => {
+            setLoadingVendorKits(true);
+            try {
+                const res = await kitsApi.getSelectableVendor();
+                if (!cancelled) {
+                    setVendorKits(res.kits || []);
+                }
+            } catch {
+                if (!cancelled) {
+                    toast.error("Failed to load vendor products");
+                    setVendorKits([]);
+                }
+            } finally {
+                if (!cancelled) setLoadingVendorKits(false);
+            }
+        };
+        loadVendorKits();
+        return () => { cancelled = true; };
+    }, []);
+
+    const toggleVendorKit = (kitId: string) => {
+        setFormData((prev) => {
+            const exists = prev.linkedVendorKits.includes(kitId);
+            return {
+                ...prev,
+                linkedVendorKits: exists
+                    ? prev.linkedVendorKits.filter((id) => id !== kitId)
+                    : [...prev.linkedVendorKits, kitId]
+            };
+        });
+    };
+
+    const filteredVendorKits = vendorKits.filter((kit) => {
+        const q = vendorProductSearch.trim().toLowerCase();
+        if (!q) return true;
+        return (
+            kit.title?.toLowerCase().includes(q) ||
+            kit.vendorName?.toLowerCase().includes(q) ||
+            kit.category?.toLowerCase().includes(q)
+        );
+    });
 
     const handleSave = async () => {
         if (!formData.title) {
@@ -768,6 +848,112 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                         ))
                                     )}
                                 </div>
+                            </CardContent>
+                        </Card>
+                    </section>
+
+                    {/* Vendor Products — link existing approved vendor kits (no duplication) */}
+                    <section id="vendor-products" className="scroll-mt-24">
+                        <Card className="border-none shadow-sm overflow-hidden bg-white/50 backdrop-blur-sm shadow-amber-500/5">
+                            <CardHeader className="bg-white/80 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
+                                <div>
+                                    <CardTitle className="flex items-center gap-2">
+                                        <Package className="w-5 h-5 text-amber-600" />
+                                        Vendor Products
+                                    </CardTitle>
+                                    <CardDescription>
+                                        Select approved vendor kits to link with this puja. Ownership stays with the vendor — products are not duplicated.
+                                    </CardDescription>
+                                </div>
+                                <div className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-full shrink-0">
+                                    {formData.linkedVendorKits.length} selected
+                                </div>
+                            </CardHeader>
+                            <CardContent className="p-6 sm:p-8 space-y-4">
+                                <div className="relative max-w-md">
+                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                    <Input
+                                        placeholder="Search by product or vendor name..."
+                                        className="pl-9"
+                                        value={vendorProductSearch}
+                                        onChange={(e) => setVendorProductSearch(e.target.value)}
+                                    />
+                                </div>
+
+                                {loadingVendorKits ? (
+                                    <div className="h-40 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                                        <Loader2 className="w-8 h-8 animate-spin text-[#8D0303]" />
+                                        <p className="text-sm">Loading vendor products...</p>
+                                    </div>
+                                ) : filteredVendorKits.length === 0 ? (
+                                    <div className="h-40 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-amber-50/20 text-amber-400">
+                                        <Package className="w-10 h-10 mb-2 opacity-30" />
+                                        <p className="font-bold text-sm">
+                                            {vendorKits.length === 0
+                                                ? "No approved vendor products available"
+                                                : "No products match your search"}
+                                        </p>
+                                    </div>
+                                ) : (
+                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[480px] overflow-y-auto pr-1">
+                                        {filteredVendorKits.map((kit) => {
+                                            const kitId = String(kit._id);
+                                            const selected = formData.linkedVendorKits.includes(kitId);
+                                            const price = getKitDisplayPrice(kit);
+                                            return (
+                                                <button
+                                                    key={kitId}
+                                                    type="button"
+                                                    onClick={() => toggleVendorKit(kitId)}
+                                                    className={cn(
+                                                        "text-left rounded-2xl border p-4 transition-all duration-200 bg-white relative group",
+                                                        selected
+                                                            ? "border-[#8D0303] ring-2 ring-[#8D0303]/15 shadow-md"
+                                                            : "border-gray-100 hover:border-amber-200 hover:shadow-sm"
+                                                    )}
+                                                >
+                                                    <div className="absolute top-3 right-3">
+                                                        <Checkbox
+                                                            checked={selected}
+                                                            onCheckedChange={() => toggleVendorKit(kitId)}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className="border-amber-400 data-[state=checked]:bg-[#8D0303] data-[state=checked]:border-[#8D0303]"
+                                                        />
+                                                    </div>
+                                                    <div className="flex gap-3 pr-8">
+                                                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 border">
+                                                            {kit.image ? (
+                                                                <img src={kit.image} alt={kit.title} className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">No Image</div>
+                                                            )}
+                                                        </div>
+                                                        <div className="min-w-0 flex-1 space-y-1">
+                                                            <p className="font-bold text-sm text-gray-900 line-clamp-2">{kit.title}</p>
+                                                            <p className="text-[11px] text-muted-foreground truncate">
+                                                                Vendor: <span className="font-semibold text-gray-700">{kit.vendorName || "Unknown"}</span>
+                                                            </p>
+                                                            <div className="flex items-center gap-2 flex-wrap">
+                                                                {price !== null && !Number.isNaN(price) && (
+                                                                    <span className="text-sm font-black text-[#8D0303]">₹{price}</span>
+                                                                )}
+                                                                <span className="text-[10px] uppercase tracking-wide font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                                                    Approved
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    {selected && (
+                                                        <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-[#8D0303]">
+                                                            <CheckCircle2 className="w-3.5 h-3.5" />
+                                                            Linked to this puja
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </CardContent>
                         </Card>
                     </section>

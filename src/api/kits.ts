@@ -90,6 +90,10 @@ export const kitsApi = {
         const response = await api.get<Kit[]>("kits/admin/pending");
         return response.data;
     },
+    getSelectableVendor: async (params?: { search?: string; vendor?: string }) => {
+        const response = await api.get<{ success: boolean; kits: Kit[] }>("kits/admin/selectable-vendor", { params });
+        return response.data;
+    },
     getById: async (id: string) => {
         const response = await api.get<Kit>(`kits/${id}`);
         return response.data;
