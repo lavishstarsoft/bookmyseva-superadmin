@@ -76,16 +76,15 @@ const SECTIONS = [
 
 function normalizeLinkedIds(raw: any): string[] {
     if (!Array.isArray(raw)) return [];
-    return [...new Set(
-        raw
-            .map((item) => {
-                if (!item) return null;
-                if (typeof item === "string") return item;
-                if (typeof item === "object" && item._id) return String(item._id);
-                return String(item);
-            })
-            .filter(Boolean)
-    )];
+    const ids = raw
+        .map((item: any) => {
+            if (!item) return null;
+            if (typeof item === "string") return item;
+            if (typeof item === "object" && item._id) return String(item._id);
+            return String(item);
+        })
+        .filter((id: string | null): id is string => Boolean(id));
+    return [...new Set(ids)];
 }
 
 function getKitDisplayPrice(kit: Kit): number | null {
