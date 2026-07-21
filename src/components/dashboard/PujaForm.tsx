@@ -131,7 +131,21 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         ] as PujaVersion[],
         prasadamOptions: [] as PrasadamOption[],
         additionalOfferings: [] as AdditionalOffering[],
-        linkedVendorKits: [] as string[]
+        linkedVendorKits: [] as string[],
+        waitingCharge: {
+            enabled: false,
+            freeWaitingMinutes: 15,
+            chargeIntervalMinutes: 10,
+            chargePerInterval: 0,
+            maxWaitingCharge: null as number | null
+        },
+        dynamicAcceptancePricing: {
+            enabled: false,
+            incrementIntervalMinutes: 10,
+            incrementAmount: 10,
+            maxIncrementLimit: 100,
+            bookingExpiryMinutes: 30
+        }
     });
 
     useEffect(() => {
@@ -154,7 +168,21 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                 versions: initialData.versions?.length > 0 ? initialData.versions : formData.versions,
                 prasadamOptions: initialData.prasadamOptions || [],
                 additionalOfferings: initialData.additionalOfferings || [],
-                linkedVendorKits: normalizeLinkedIds(initialData.linkedVendorKits)
+                linkedVendorKits: normalizeLinkedIds(initialData.linkedVendorKits),
+                waitingCharge: {
+                    enabled: !!initialData.waitingCharge?.enabled,
+                    freeWaitingMinutes: initialData.waitingCharge?.freeWaitingMinutes ?? 15,
+                    chargeIntervalMinutes: initialData.waitingCharge?.chargeIntervalMinutes ?? 10,
+                    chargePerInterval: initialData.waitingCharge?.chargePerInterval ?? 0,
+                    maxWaitingCharge: initialData.waitingCharge?.maxWaitingCharge ?? null
+                },
+                dynamicAcceptancePricing: {
+                    enabled: !!initialData.dynamicAcceptancePricing?.enabled,
+                    incrementIntervalMinutes: initialData.dynamicAcceptancePricing?.incrementIntervalMinutes ?? 10,
+                    incrementAmount: initialData.dynamicAcceptancePricing?.incrementAmount ?? 10,
+                    maxIncrementLimit: initialData.dynamicAcceptancePricing?.maxIncrementLimit ?? 100,
+                    bookingExpiryMinutes: initialData.dynamicAcceptancePricing?.bookingExpiryMinutes ?? 30
+                }
             });
         }
     }, [initialData]);
@@ -570,6 +598,139 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                             ))
                                         )}
                                     </div>
+                                </div>
+                                <div className="p-8 border-b bg-amber-50/30">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="space-y-1">
+                                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                                <Clock className="w-4 h-4 text-amber-600" /> Waiting Charge (Optional)
+                                            </h3>
+                                            <p className="text-xs text-muted-foreground">
+                                                When enabled, customers may be charged if the poojari waits beyond the free period after starting journey.
+                                            </p>
+                                        </div>
+                                        <Checkbox
+                                            checked={formData.waitingCharge.enabled}
+                                            onCheckedChange={(checked) => setFormData({
+                                                ...formData,
+                                                waitingCharge: { ...formData.waitingCharge, enabled: !!checked }
+                                            })}
+                                        />
+                                    </div>
+                                    {formData.waitingCharge.enabled && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Free Waiting (minutes)</label>
+                                                <Input type="number" min={0} value={formData.waitingCharge.freeWaitingMinutes}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        waitingCharge: { ...formData.waitingCharge, freeWaitingMinutes: Number(e.target.value) }
+                                                    })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Charge Interval (minutes)</label>
+                                                <Input type="number" min={1} value={formData.waitingCharge.chargeIntervalMinutes}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        waitingCharge: { ...formData.waitingCharge, chargeIntervalMinutes: Number(e.target.value) }
+                                                    })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">₹ Per Interval</label>
+                                                <Input type="number" min={0} value={formData.waitingCharge.chargePerInterval}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        waitingCharge: { ...formData.waitingCharge, chargePerInterval: Number(e.target.value) }
+                                                    })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Max Charge (optional)</label>
+                                                <Input type="number" min={0} placeholder="No cap"
+                                                    value={formData.waitingCharge.maxWaitingCharge ?? ''}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        waitingCharge: {
+                                                            ...formData.waitingCharge,
+                                                            maxWaitingCharge: e.target.value === '' ? null : Number(e.target.value)
+                                                        }
+                                                    })} />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="p-8 border-b bg-indigo-50/30">
+                                    <div className="flex items-center justify-between mb-4">
+                                        <div className="space-y-1">
+                                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                                <IndianRupee className="w-4 h-4 text-indigo-600" /> Dynamic Acceptance Pricing
+                                            </h3>
+                                            <p className="text-xs text-muted-foreground">
+                                                Auto-increase puja amount at intervals until a poojari accepts. Vendor product prices stay fixed.
+                                            </p>
+                                        </div>
+                                        <Checkbox
+                                            checked={formData.dynamicAcceptancePricing.enabled}
+                                            onCheckedChange={(checked) => setFormData({
+                                                ...formData,
+                                                dynamicAcceptancePricing: {
+                                                    ...formData.dynamicAcceptancePricing,
+                                                    enabled: !!checked
+                                                }
+                                            })}
+                                        />
+                                    </div>
+                                    {formData.dynamicAcceptancePricing.enabled && (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Increment Interval (minutes)</label>
+                                                <Input type="number" min={1}
+                                                    value={formData.dynamicAcceptancePricing.incrementIntervalMinutes}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        dynamicAcceptancePricing: {
+                                                            ...formData.dynamicAcceptancePricing,
+                                                            incrementIntervalMinutes: Number(e.target.value)
+                                                        }
+                                                    })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Increment Amount (₹)</label>
+                                                <Input type="number" min={1}
+                                                    value={formData.dynamicAcceptancePricing.incrementAmount}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        dynamicAcceptancePricing: {
+                                                            ...formData.dynamicAcceptancePricing,
+                                                            incrementAmount: Number(e.target.value)
+                                                        }
+                                                    })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Maximum Increment Limit (₹)</label>
+                                                <Input type="number" min={0}
+                                                    value={formData.dynamicAcceptancePricing.maxIncrementLimit}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        dynamicAcceptancePricing: {
+                                                            ...formData.dynamicAcceptancePricing,
+                                                            maxIncrementLimit: Number(e.target.value)
+                                                        }
+                                                    })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Booking Expiry (minutes)</label>
+                                                <Input type="number" min={1}
+                                                    value={formData.dynamicAcceptancePricing.bookingExpiryMinutes}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        dynamicAcceptancePricing: {
+                                                            ...formData.dynamicAcceptancePricing,
+                                                            bookingExpiryMinutes: Number(e.target.value)
+                                                        }
+                                                    })} />
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <Tabs defaultValue="basic" className="w-full">
                                     <TabsList className="w-full h-16 bg-muted/50 rounded-none border-b p-0 flex">

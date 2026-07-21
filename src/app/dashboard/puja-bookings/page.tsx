@@ -32,7 +32,16 @@ interface PujaBooking {
     scheduledTimeSlot: string;
     actionEnableHoursBefore?: number;
     address: { line1: string; city: string; state: string; pincode: string };
-    pricing: { totalAmount: number; finalAmount: number; priceIncrement: number; adminCommissionAmount?: number; pujariEarnings?: number };
+    pricing: {
+        totalAmount: number;
+        finalAmount: number;
+        priceIncrement: number;
+        adminCommissionAmount?: number;
+        pujariEarnings?: number;
+        vendorProductsAmount?: number;
+        vendorProductsFinalAmount?: number;
+        combinedFinalAmount?: number;
+    };
     payment: { mode: string; totalPaid: number; advancePaid: boolean; remainingPaid: boolean };
     matchingStatus: string;
     status: string;
@@ -42,6 +51,26 @@ interface PujaBooking {
     locationHistory?: { latitude: number; longitude: number; timestamp: string }[];
     feedback: { rating: number; review: string } | null;
     createdAt: string;
+    paymentGroupId?: string;
+    selectedVendorProducts?: {
+        title: string;
+        image?: string;
+        vendorName?: string;
+        quantity: number;
+        unitPrice?: number;
+        lineTotal?: number;
+        kitOrderId?: string;
+    }[];
+    linkedKitOrderIds?: {
+        _id: string;
+        orderId: string;
+        kit?: { title?: string; image?: string };
+        quantity?: number;
+        totalAmount?: number;
+        status?: string;
+        paymentStatus?: string;
+        vendor?: { vendorName?: string };
+    }[];
 }
 
 type StatusFilter = "all" | "pending" | "confirmed" | "pujari_assigned" | "journey_started" | "arrived" | "in_progress" | "completed" | "cancelled";
@@ -385,7 +414,14 @@ export default function PujaBookingsPage() {
                                         <div className="text-xs text-muted-foreground">{booking.scheduledTimeSlot}</div>
                                     </TableCell>
                                     <TableCell>
-                                        <div className="font-bold text-sm">₹{booking.pricing?.finalAmount || 0}</div>
+                                        <div className="font-bold text-sm">
+                                            ₹{(booking.pricing?.combinedFinalAmount > 0
+                                                ? booking.pricing.combinedFinalAmount
+                                                : booking.pricing?.finalAmount) || 0}
+                                        </div>
+                                        {booking.linkedKitOrderIds && booking.linkedKitOrderIds.length > 0 && (
+                                            <div className="text-[10px] text-amber-700 font-medium">+{booking.linkedKitOrderIds.length} products</div>
+                                        )}
                                         {paymentBadge(booking.paymentStatus)}
                                     </TableCell>
                                     <TableCell>
@@ -484,7 +520,43 @@ export default function PujaBookingsPage() {
                                 {viewBooking.bmsCoins?.earned > 0 && <div className="flex justify-between"><span>Coins Earned</span><span className="font-medium text-green-600">+{viewBooking.bmsCoins.earned}</span></div>}
                                 <div className="flex justify-between border-t border-green-200/50 pt-1 mt-1"><span>Admin Commission</span><span className="font-bold text-emerald-800">₹{viewBooking.pricing?.adminCommissionAmount || 0}</span></div>
                                 <div className="flex justify-between"><span>Pujari Earnings</span><span className="font-bold text-indigo-800">₹{viewBooking.pricing?.pujariEarnings || 0}</span></div>
+                                {(viewBooking.pricing?.combinedFinalAmount || 0) > 0 && (
+                                    <>
+                                        <div className="flex justify-between border-t border-green-200/50 pt-1 mt-1"><span>Vendor Products</span><span className="font-bold text-amber-800">₹{viewBooking.pricing?.vendorProductsFinalAmount || viewBooking.pricing?.vendorProductsAmount || 0}</span></div>
+                                        <div className="flex justify-between"><span>Customer Paid (Combined)</span><span className="font-bold text-[#8D0303]">₹{viewBooking.pricing.combinedFinalAmount}</span></div>
+                                    </>
+                                )}
                             </div>
+
+                            {((viewBooking.selectedVendorProducts && viewBooking.selectedVendorProducts.length > 0) ||
+                              (viewBooking.linkedKitOrderIds && viewBooking.linkedKitOrderIds.length > 0)) && (
+                                <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-sm space-y-2">
+                                    <div className="font-bold text-amber-900">Linked Vendor Products</div>
+                                    {viewBooking.paymentGroupId && (
+                                        <div className="text-[10px] font-mono text-amber-700">Group: {viewBooking.paymentGroupId}</div>
+                                    )}
+                                    {(viewBooking.linkedKitOrderIds && viewBooking.linkedKitOrderIds.length > 0
+                                        ? viewBooking.linkedKitOrderIds
+                                        : viewBooking.selectedVendorProducts || []
+                                    ).map((item: any, idx: number) => (
+                                        <div key={item._id || item.kitOrderId || idx} className="flex justify-between gap-2 bg-white/70 rounded-md p-2 border border-amber-100">
+                                            <div className="min-w-0">
+                                                <div className="font-semibold truncate">{item.kit?.title || item.title}</div>
+                                                <div className="text-[11px] text-muted-foreground">
+                                                    Vendor: {item.vendor?.vendorName || item.vendorName || "—"}
+                                                    {(item.orderId) && <span className="ml-2 font-mono">#{item.orderId}</span>}
+                                                </div>
+                                                <div className="text-[11px] capitalize text-amber-800">
+                                                    Qty {item.quantity || 1}
+                                                    {item.status ? ` · ${String(item.status).replace(/_/g, " ")}` : ""}
+                                                    {item.paymentStatus ? ` · ${item.paymentStatus}` : ""}
+                                                </div>
+                                            </div>
+                                            <div className="font-bold shrink-0">₹{item.totalAmount ?? item.lineTotal ?? 0}</div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                             
                             {/* Pujari Workflow / Tracking UI */}
                             {viewBooking.pujariWorkflow && (
