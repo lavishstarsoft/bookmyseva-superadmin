@@ -42,7 +42,8 @@ import {
     Flame,
     MapPinned,
     Siren,
-    Smartphone
+    Smartphone,
+    DollarSign
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
@@ -171,6 +172,11 @@ const routes = [
                 label: "Pujari App Settings",
                 href: "/dashboard/pujaris/settings",
                 icon: Settings
+            },
+            {
+                label: "Offer & Pricing",
+                href: "/dashboard/acceptance-pricing",
+                icon: DollarSign
             },
             {
                 label: "BMS Coins",

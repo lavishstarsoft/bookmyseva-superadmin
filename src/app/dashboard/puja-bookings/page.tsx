@@ -36,6 +36,10 @@ interface PujaBooking {
         totalAmount: number;
         finalAmount: number;
         priceIncrement: number;
+        manualPriceIncrement?: number;
+        autoAcceptanceIncrement?: number;
+        baseFinalAmount?: number;
+        pujaBaseCost?: number;
         adminCommissionAmount?: number;
         pujariEarnings?: number;
         vendorProductsAmount?: number;
@@ -537,13 +541,16 @@ export default function PujaBookingsPage() {
                             </div>
                             <div className="bg-green-50 p-3 rounded-lg space-y-1 text-sm">
                                 <div className="font-bold text-green-800">Payment Summary</div>
-                                <div className="flex justify-between"><span>Total Amount</span><span className="font-bold">₹{viewBooking.pricing?.totalAmount}</span></div>
-                                <div className="flex justify-between"><span>Final Amount</span><span className="font-bold text-green-700">₹{viewBooking.pricing?.finalAmount}</span></div>
+                                <div className="flex justify-between"><span>Base Puja Amount</span><span className="font-bold">₹{viewBooking.pricing?.baseFinalAmount || viewBooking.pricing?.pujaBaseCost}</span></div>
+                                {(viewBooking.pricing?.manualPriceIncrement || 0) > 0 && (
+                                    <div className="flex justify-between"><span>Customer Manual Increase</span><span className="font-bold text-amber-700">+₹{viewBooking.pricing.manualPriceIncrement}</span></div>
+                                )}
+                                {(viewBooking.pricing?.autoAcceptanceIncrement || 0) > 0 && (
+                                    <div className="flex justify-between"><span>Auto Acceptance Increment</span><span className="font-bold text-blue-700">+₹{viewBooking.pricing.autoAcceptanceIncrement}</span></div>
+                                )}
+                                <div className="flex justify-between"><span>Final Offer Amount</span><span className="font-bold text-green-700">₹{viewBooking.pricing?.finalAmount}</span></div>
                                 <div className="flex justify-between"><span>Payment Mode</span><span className="font-medium capitalize">{viewBooking.payment?.mode}</span></div>
                                 <div className="flex justify-between"><span>Total Paid</span><span className="font-bold text-green-600">₹{viewBooking.payment?.totalPaid}</span></div>
-                                {(viewBooking.pricing?.priceIncrement || 0) > 0 && (
-                                    <div className="flex justify-between"><span>Waiting Increment</span><span className="font-bold text-amber-700">+₹{viewBooking.pricing.priceIncrement}</span></div>
-                                )}
                                 {viewBooking.bmsCoins?.used > 0 && <div className="flex justify-between"><span>BMS Coins Used</span><span className="font-medium text-amber-600">{viewBooking.bmsCoins.used}</span></div>}
                                 {viewBooking.bmsCoins?.earned > 0 && <div className="flex justify-between"><span>Coins Earned</span><span className="font-medium text-green-600">+{viewBooking.bmsCoins.earned}</span></div>}
                                 <div className="flex justify-between border-t border-green-200/50 pt-1 mt-1"><span>Admin Commission</span><span className="font-bold text-emerald-800">₹{viewBooking.pricing?.adminCommissionAmount || 0}</span></div>
@@ -556,9 +563,9 @@ export default function PujaBookingsPage() {
                                 )}
                             </div>
 
-                            {(viewBooking.acceptancePricingConfig?.enabled || (viewBooking.pricing?.priceIncrement || 0) > 0) && (
+                            {((viewBooking.pricing?.manualPriceIncrement || 0) > 0 || (viewBooking.pricing?.priceIncrement || 0) > 0) && (
                                 <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-sm space-y-1.5">
-                                    <div className="font-bold text-amber-900">Waiting Charge (Accept Wait)</div>
+                                    <div className="font-bold text-amber-900">Offer & Price Increments</div>
                                     <div className="flex justify-between">
                                         <span>Matching Started</span>
                                         <span className="font-medium">
@@ -568,8 +575,12 @@ export default function PujaBookingsPage() {
                                         </span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span>Amount Increment</span>
-                                        <span className="font-bold text-amber-800">+₹{viewBooking.pricing?.priceIncrement || 0}</span>
+                                        <span>Customer Manual Increase</span>
+                                        <span className="font-bold text-amber-800">+₹{viewBooking.pricing?.manualPriceIncrement || 0}</span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Total Price Increment</span>
+                                        <span className="font-bold text-amber-900">+₹{viewBooking.pricing?.priceIncrement || 0}</span>
                                     </div>
                                     {viewBooking.acceptancePricingLocked && (
                                         <div className="flex justify-between">
