@@ -16,7 +16,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { ImageUpload, MultiImageUpload } from "@/components/ui/image-upload";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Separator } from "@/components/ui/separator";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
 import api from "@/lib/axios";
@@ -38,6 +37,7 @@ interface PujaVersion {
     rating: number;
     includes: { icon: string; text: string }[];
     kitItems: KitItem[];
+    linkedVendorKits: string[];
 }
 
 interface PrasadamOption {
@@ -70,7 +70,6 @@ const SECTIONS = [
     { id: "pricing", label: "Pricing Tiers", icon: IndianRupee },
     { id: "availability", label: "Availability Setup", icon: Calendar },
     { id: "prasadam", label: "Prasadam Setup", icon: Utensils },
-    { id: "vendor-products", label: "Vendor Products", icon: Package },
     { id: "addons", label: "Additional Offerings", icon: Gift },
 ];
 
@@ -85,6 +84,40 @@ function normalizeLinkedIds(raw: any): string[] {
         })
         .filter((id: string | null): id is string => Boolean(id));
     return [...new Set(ids)];
+}
+
+function normalizeVersions(rawVersions: any[] | undefined, legacyTopLevelKits: string[]): PujaVersion[] {
+    const defaults: PujaVersion[] = [
+        { id: "basic", title: "Basic", price: 0, description: "", method: "Standard", rating: 4, includes: [], kitItems: [], linkedVendorKits: [] },
+        { id: "premium", title: "Premium", price: 0, description: "", method: "Agama Shastra", rating: 4.5, includes: [], kitItems: [], linkedVendorKits: [] },
+        { id: "super_premium", title: "Super Premium", price: 0, description: "", method: "Agama + Veda Ashirvadam", rating: 5, includes: [], kitItems: [], linkedVendorKits: [] },
+    ];
+
+    if (!rawVersions?.length) {
+        return defaults.map((d) => ({
+            ...d,
+            linkedVendorKits: [...legacyTopLevelKits]
+        }));
+    }
+
+    const mapped = rawVersions.map((ver: any) => ({
+        id: ver.id,
+        title: ver.title || "",
+        price: ver.price || 0,
+        description: ver.description || "",
+        method: ver.method || "",
+        rating: ver.rating ?? 4,
+        includes: ver.includes || [],
+        kitItems: ver.kitItems || [],
+        linkedVendorKits: normalizeLinkedIds(ver.linkedVendorKits)
+    }));
+
+    const anyVersionHasKits = mapped.some((v) => v.linkedVendorKits.length > 0);
+    if (!anyVersionHasKits && legacyTopLevelKits.length > 0) {
+        return mapped.map((v) => ({ ...v, linkedVendorKits: [...legacyTopLevelKits] }));
+    }
+
+    return mapped;
 }
 
 function getKitDisplayPrice(kit: Kit): number | null {
@@ -125,26 +158,27 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         },
         timeSlots: [] as { id: string; label: string }[],
         versions: [
-            { id: "basic", title: "Basic", price: 0, description: "", method: "Standard", rating: 4, includes: [], kitItems: [] },
-            { id: "premium", title: "Premium", price: 0, description: "", method: "Agama Shastra", rating: 4.5, includes: [], kitItems: [] },
-            { id: "super_premium", title: "Super Premium", price: 0, description: "", method: "Agama + Veda Ashirvadam", rating: 5, includes: [], kitItems: [] },
+            { id: "basic", title: "Basic", price: 0, description: "", method: "Standard", rating: 4, includes: [], kitItems: [], linkedVendorKits: [] },
+            { id: "premium", title: "Premium", price: 0, description: "", method: "Agama Shastra", rating: 4.5, includes: [], kitItems: [], linkedVendorKits: [] },
+            { id: "super_premium", title: "Super Premium", price: 0, description: "", method: "Agama + Veda Ashirvadam", rating: 5, includes: [], kitItems: [], linkedVendorKits: [] },
         ] as PujaVersion[],
         prasadamOptions: [] as PrasadamOption[],
         additionalOfferings: [] as AdditionalOffering[],
-        linkedVendorKits: [] as string[],
         waitingCharge: {
             enabled: false,
             freeWaitingMinutes: 15,
             chargeIntervalMinutes: 10,
             chargePerInterval: 0,
-            maxWaitingCharge: null as number | null
+            maxWaitingCharge: null as number | null,
+            autoCancelAfterMinutes: null as number | null
         },
         dynamicAcceptancePricing: {
             enabled: false,
-            incrementIntervalMinutes: 10,
+            freeWaitingMinutes: 3,
+            incrementIntervalMinutes: 2,
             incrementAmount: 10,
             maxIncrementLimit: 100,
-            bookingExpiryMinutes: 30
+            bookingExpiryMinutes: 15
         }
     });
 
@@ -165,23 +199,20 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                     endDate: initialData.availableDates?.endDate ? new Date(initialData.availableDates.endDate).toISOString().split('T')[0] : ""
                 },
                 timeSlots: initialData.timeSlots || [],
-                versions: initialData.versions?.length > 0 ? initialData.versions : formData.versions,
+                versions: normalizeVersions(
+                    initialData.versions,
+                    normalizeLinkedIds(initialData.linkedVendorKits)
+                ),
                 prasadamOptions: initialData.prasadamOptions || [],
                 additionalOfferings: initialData.additionalOfferings || [],
-                linkedVendorKits: normalizeLinkedIds(initialData.linkedVendorKits),
-                waitingCharge: {
-                    enabled: !!initialData.waitingCharge?.enabled,
-                    freeWaitingMinutes: initialData.waitingCharge?.freeWaitingMinutes ?? 15,
-                    chargeIntervalMinutes: initialData.waitingCharge?.chargeIntervalMinutes ?? 10,
-                    chargePerInterval: initialData.waitingCharge?.chargePerInterval ?? 0,
-                    maxWaitingCharge: initialData.waitingCharge?.maxWaitingCharge ?? null
-                },
+                waitingCharge: { enabled: false },
                 dynamicAcceptancePricing: {
                     enabled: !!initialData.dynamicAcceptancePricing?.enabled,
-                    incrementIntervalMinutes: initialData.dynamicAcceptancePricing?.incrementIntervalMinutes ?? 10,
+                    freeWaitingMinutes: initialData.dynamicAcceptancePricing?.freeWaitingMinutes ?? 3,
+                    incrementIntervalMinutes: initialData.dynamicAcceptancePricing?.incrementIntervalMinutes ?? 2,
                     incrementAmount: initialData.dynamicAcceptancePricing?.incrementAmount ?? 10,
                     maxIncrementLimit: initialData.dynamicAcceptancePricing?.maxIncrementLimit ?? 100,
-                    bookingExpiryMinutes: initialData.dynamicAcceptancePricing?.bookingExpiryMinutes ?? 30
+                    bookingExpiryMinutes: initialData.dynamicAcceptancePricing?.bookingExpiryMinutes ?? 15
                 }
             });
         }
@@ -209,15 +240,18 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         return () => { cancelled = true; };
     }, []);
 
-    const toggleVendorKit = (kitId: string) => {
+    const toggleVendorKit = (versionIndex: number, kitId: string) => {
         setFormData((prev) => {
-            const exists = prev.linkedVendorKits.includes(kitId);
-            return {
-                ...prev,
+            const updated = [...prev.versions];
+            const current = updated[versionIndex].linkedVendorKits || [];
+            const exists = current.includes(kitId);
+            updated[versionIndex] = {
+                ...updated[versionIndex],
                 linkedVendorKits: exists
-                    ? prev.linkedVendorKits.filter((id) => id !== kitId)
-                    : [...prev.linkedVendorKits, kitId]
+                    ? current.filter((id) => id !== kitId)
+                    : [...current, kitId]
             };
+            return { ...prev, versions: updated };
         });
     };
 
@@ -238,11 +272,16 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         }
         setSaving(true);
         try {
+            const linkedVendorKits = [
+                ...new Set(formData.versions.flatMap((v) => v.linkedVendorKits || []))
+            ];
+            const payload = { ...formData, linkedVendorKits };
+
             if (initialData?._id) {
-                await api.put(`/pujas/${initialData._id}`, formData);
+                await api.put(`/pujas/${initialData._id}`, payload);
                 toast.success("Puja updated successfully");
             } else {
-                await api.post("/pujas", formData);
+                await api.post("/pujas", payload);
                 toast.success("Puja created successfully");
             }
             router.push("/dashboard/pujas");
@@ -256,24 +295,6 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
     const updateVersion = (index: number, field: string, value: any) => {
         const updated = [...formData.versions];
         (updated[index] as any)[field] = value;
-        setFormData({ ...formData, versions: updated });
-    };
-
-    const addKitItem = (versionIndex: number) => {
-        const updated = [...formData.versions];
-        updated[versionIndex].kitItems.push({ icon: '📦', image: '', text: '' });
-        setFormData({ ...formData, versions: updated });
-    };
-
-    const updateKitItem = (versionIndex: number, itemIndex: number, field: string, value: string) => {
-        const updated = [...formData.versions];
-        (updated[versionIndex].kitItems[itemIndex] as any)[field] = value;
-        setFormData({ ...formData, versions: updated });
-    };
-
-    const removeKitItem = (versionIndex: number, itemIndex: number) => {
-        const updated = [...formData.versions];
-        updated[versionIndex].kitItems.splice(itemIndex, 1);
         setFormData({ ...formData, versions: updated });
     };
 
@@ -606,66 +627,8 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                 <Clock className="w-4 h-4 text-amber-600" /> Waiting Charge (Optional)
                                             </h3>
                                             <p className="text-xs text-muted-foreground">
-                                                When enabled, customers may be charged if the poojari waits beyond the free period after starting journey.
-                                            </p>
-                                        </div>
-                                        <Checkbox
-                                            checked={formData.waitingCharge.enabled}
-                                            onCheckedChange={(checked) => setFormData({
-                                                ...formData,
-                                                waitingCharge: { ...formData.waitingCharge, enabled: !!checked }
-                                            })}
-                                        />
-                                    </div>
-                                    {formData.waitingCharge.enabled && (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Free Waiting (minutes)</label>
-                                                <Input type="number" min={0} value={formData.waitingCharge.freeWaitingMinutes}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        waitingCharge: { ...formData.waitingCharge, freeWaitingMinutes: Number(e.target.value) }
-                                                    })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Charge Interval (minutes)</label>
-                                                <Input type="number" min={1} value={formData.waitingCharge.chargeIntervalMinutes}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        waitingCharge: { ...formData.waitingCharge, chargeIntervalMinutes: Number(e.target.value) }
-                                                    })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">₹ Per Interval</label>
-                                                <Input type="number" min={0} value={formData.waitingCharge.chargePerInterval}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        waitingCharge: { ...formData.waitingCharge, chargePerInterval: Number(e.target.value) }
-                                                    })} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Max Charge (optional)</label>
-                                                <Input type="number" min={0} placeholder="No cap"
-                                                    value={formData.waitingCharge.maxWaitingCharge ?? ''}
-                                                    onChange={(e) => setFormData({
-                                                        ...formData,
-                                                        waitingCharge: {
-                                                            ...formData.waitingCharge,
-                                                            maxWaitingCharge: e.target.value === '' ? null : Number(e.target.value)
-                                                        }
-                                                    })} />
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                                <div className="p-8 border-b bg-indigo-50/30">
-                                    <div className="flex items-center justify-between mb-4">
-                                        <div className="space-y-1">
-                                            <h3 className="text-sm font-bold text-gray-700 flex items-center gap-2">
-                                                <IndianRupee className="w-4 h-4 text-indigo-600" /> Dynamic Acceptance Pricing
-                                            </h3>
-                                            <p className="text-xs text-muted-foreground">
-                                                Auto-increase puja amount at intervals until a poojari accepts. Vendor product prices stay fixed.
+                                                While the customer waits for a poojari to accept, the booking amount can increase after free waiting.
+                                                Vendor product prices stay fixed. Applies to the whole puja (not per package).
                                             </p>
                                         </div>
                                         <Checkbox
@@ -682,7 +645,19 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                     {formData.dynamicAcceptancePricing.enabled && (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div className="space-y-2">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Increment Interval (minutes)</label>
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Free Waiting (minutes)</label>
+                                                <Input type="number" min={0}
+                                                    value={formData.dynamicAcceptancePricing.freeWaitingMinutes}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        dynamicAcceptancePricing: {
+                                                            ...formData.dynamicAcceptancePricing,
+                                                            freeWaitingMinutes: Number(e.target.value)
+                                                        }
+                                                    })} />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Charge Interval (minutes)</label>
                                                 <Input type="number" min={1}
                                                     value={formData.dynamicAcceptancePricing.incrementIntervalMinutes}
                                                     onChange={(e) => setFormData({
@@ -694,8 +669,8 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                     })} />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Increment Amount (₹)</label>
-                                                <Input type="number" min={1}
+                                                <label className="text-xs font-bold text-gray-500 uppercase">₹ Per Interval</label>
+                                                <Input type="number" min={0}
                                                     value={formData.dynamicAcceptancePricing.incrementAmount}
                                                     onChange={(e) => setFormData({
                                                         ...formData,
@@ -706,7 +681,7 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                     })} />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Maximum Increment Limit (₹)</label>
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Maximum Increment (₹)</label>
                                                 <Input type="number" min={0}
                                                     value={formData.dynamicAcceptancePricing.maxIncrementLimit}
                                                     onChange={(e) => setFormData({
@@ -718,7 +693,7 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                     })} />
                                             </div>
                                             <div className="space-y-2">
-                                                <label className="text-xs font-bold text-gray-500 uppercase">Booking Expiry (minutes)</label>
+                                                <label className="text-xs font-bold text-gray-500 uppercase">Auto Cancel After Waiting (minutes)</label>
                                                 <Input type="number" min={1}
                                                     value={formData.dynamicAcceptancePricing.bookingExpiryMinutes}
                                                     onChange={(e) => setFormData({
@@ -728,6 +703,9 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                             bookingExpiryMinutes: Number(e.target.value)
                                                         }
                                                     })} />
+                                                <p className="text-[10px] text-muted-foreground">
+                                                    If no poojari accepts within this time, booking is cancelled automatically.
+                                                </p>
                                             </div>
                                         </div>
                                     )}
@@ -790,57 +768,102 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                     </div>
                                                 </div>
 
-                                                <div className="bg-gray-50/50 rounded-2xl border p-6 space-y-4">
-                                                    <div className="flex items-center justify-between">
-                                                        <h4 className="text-sm font-black uppercase tracking-widest text-[#8D0303]">Pooja Kit Contents</h4>
-                                                        <Button type="button" variant="outline" size="sm" onClick={() => addKitItem(idx)} className="h-8 rounded-lg bg-white">
-                                                            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Item
-                                                        </Button>
-                                                    </div>
-                                                    
-                                                    <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2 scrollbar-thin">
-                                                        {version.kitItems.length === 0 ? (
-                                                            <div className="h-32 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-white/50 text-muted-foreground">
-                                                                <LayoutGrid className="w-8 h-8 mb-2 opacity-20" />
-                                                                <p className="text-xs font-semibold">No kit items added</p>
+                                                <div className="bg-gray-50/50 rounded-2xl border p-6 space-y-3">
+                                                        <div className="flex items-center justify-between gap-2">
+                                                            <div>
+                                                                <h4 className="text-sm font-black uppercase tracking-widest text-[#8D0303] flex items-center gap-1.5">
+                                                                    <Package className="w-4 h-4" /> Pooja Kit Contents
+                                                                </h4>
+                                                                <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                                    Vendor products linked only to {version.title} package
+                                                                </p>
+                                                            </div>
+                                                            <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full shrink-0">
+                                                                {(version.linkedVendorKits || []).length} selected
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="relative">
+                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                                            <Input
+                                                                placeholder="Search vendor products..."
+                                                                className="pl-9 h-9 text-xs"
+                                                                value={vendorProductSearch}
+                                                                onChange={(e) => setVendorProductSearch(e.target.value)}
+                                                            />
+                                                        </div>
+
+                                                        {loadingVendorKits ? (
+                                                            <div className="h-28 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                                                                <Loader2 className="w-6 h-6 animate-spin text-[#8D0303]" />
+                                                                <p className="text-xs">Loading products...</p>
+                                                            </div>
+                                                        ) : filteredVendorKits.length === 0 ? (
+                                                            <div className="h-28 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-amber-50/20 text-amber-400">
+                                                                <Package className="w-8 h-8 mb-1 opacity-30" />
+                                                                <p className="text-xs font-bold">
+                                                                    {vendorKits.length === 0
+                                                                        ? "No approved vendor products"
+                                                                        : "No products match search"}
+                                                                </p>
                                                             </div>
                                                         ) : (
-                                                            version.kitItems.map((item, itemIdx) => (
-                                                                <div key={itemIdx} className="flex gap-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm relative group animate-in zoom-in-95">
-                                                                    <div className="w-16 h-16 shrink-0 rounded-lg overflow-hidden border bg-gray-50 relative group">
-                                                                        <ImageUpload
-                                                                            value={item.image}
-                                                                            onChange={(url) => updateKitItem(idx, itemIdx, "image", url)}
-                                                                            aspectRatio={1}
-                                                                            className="w-full h-full"
-                                                                        />
-                                                                    </div>
-                                                                    <div className="flex-1 space-y-2">
-                                                                        <Input 
-                                                                            placeholder="Item name (e.g. Kumkum)" 
-                                                                            className="h-8 text-xs font-bold border-none bg-gray-50/50 focus:bg-white px-2"
-                                                                            value={item.text}
-                                                                            onChange={(e) => updateKitItem(idx, itemIdx, "text", e.target.value)}
-                                                                        />
-                                                                        <div className="flex gap-2 items-center">
-                                                                            <span className="text-[10px] font-bold text-gray-400">ICON:</span>
-                                                                            <Input 
-                                                                                className="h-7 w-12 text-center text-sm p-0 border-gray-100" 
-                                                                                value={item.icon} 
-                                                                                onChange={(e) => updateKitItem(idx, itemIdx, "icon", e.target.value)} 
-                                                                            />
-                                                                        </div>
-                                                                    </div>
-                                                                    <button 
-                                                                        className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity border-2 border-white shadow-sm"
-                                                                        onClick={() => removeKitItem(idx, itemIdx)}
-                                                                    >
-                                                                        <Trash2 className="w-3 h-3" />
-                                                                    </button>
-                                                                </div>
-                                                            ))
+                                                            <div className="grid grid-cols-1 gap-2.5 max-h-[420px] overflow-y-auto pr-1">
+                                                                {filteredVendorKits.map((kit) => {
+                                                                    const kitId = String(kit._id);
+                                                                    const selected = (version.linkedVendorKits || []).includes(kitId);
+                                                                    const price = getKitDisplayPrice(kit);
+                                                                    return (
+                                                                        <button
+                                                                            key={kitId}
+                                                                            type="button"
+                                                                            onClick={() => toggleVendorKit(idx, kitId)}
+                                                                            className={cn(
+                                                                                "text-left rounded-xl border p-3 transition-all duration-200 bg-white relative",
+                                                                                selected
+                                                                                    ? "border-[#8D0303] ring-2 ring-[#8D0303]/15 shadow-sm"
+                                                                                    : "border-gray-100 hover:border-amber-200"
+                                                                            )}
+                                                                        >
+                                                                            <div className="absolute top-2.5 right-2.5">
+                                                                                <Checkbox
+                                                                                    checked={selected}
+                                                                                    onCheckedChange={() => toggleVendorKit(idx, kitId)}
+                                                                                    onClick={(e) => e.stopPropagation()}
+                                                                                    className="border-amber-400 data-[state=checked]:bg-[#8D0303] data-[state=checked]:border-[#8D0303]"
+                                                                                />
+                                                                            </div>
+                                                                            <div className="flex gap-3 pr-7">
+                                                                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0 border">
+                                                                                    {kit.image ? (
+                                                                                        <img src={kit.image} alt={kit.title} className="w-full h-full object-cover" />
+                                                                                    ) : (
+                                                                                        <div className="w-full h-full flex items-center justify-center text-[9px] text-gray-400">No Img</div>
+                                                                                    )}
+                                                                                </div>
+                                                                                <div className="min-w-0 flex-1 space-y-0.5">
+                                                                                    <p className="font-bold text-xs text-gray-900 line-clamp-2">{kit.title}</p>
+                                                                                    <p className="text-[10px] text-muted-foreground truncate">
+                                                                                        {kit.vendorName || "Unknown vendor"}
+                                                                                    </p>
+                                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                        {price !== null && !Number.isNaN(price) && (
+                                                                                            <span className="text-xs font-black text-[#8D0303]">₹{price}</span>
+                                                                                        )}
+                                                                                        <span className="text-[9px] uppercase tracking-wide font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                                                                            Available
+                                                                                        </span>
+                                                                                        {selected && (
+                                                                                            <span className="text-[9px] font-semibold text-[#8D0303]">Selected</span>
+                                                                                        )}
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        </button>
+                                                                    );
+                                                                })}
+                                                            </div>
                                                         )}
-                                                    </div>
                                                 </div>
                                             </div>
                                         </TabsContent>
@@ -1008,112 +1031,6 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                         ))
                                     )}
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </section>
-
-                    {/* Vendor Products — link existing approved vendor kits (no duplication) */}
-                    <section id="vendor-products" className="scroll-mt-24">
-                        <Card className="border-none shadow-sm overflow-hidden bg-white/50 backdrop-blur-sm shadow-amber-500/5">
-                            <CardHeader className="bg-white/80 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-4">
-                                <div>
-                                    <CardTitle className="flex items-center gap-2">
-                                        <Package className="w-5 h-5 text-amber-600" />
-                                        Vendor Products
-                                    </CardTitle>
-                                    <CardDescription>
-                                        Select approved vendor kits to link with this puja. Ownership stays with the vendor — products are not duplicated.
-                                    </CardDescription>
-                                </div>
-                                <div className="text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-3 py-1.5 rounded-full shrink-0">
-                                    {formData.linkedVendorKits.length} selected
-                                </div>
-                            </CardHeader>
-                            <CardContent className="p-6 sm:p-8 space-y-4">
-                                <div className="relative max-w-md">
-                                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                                    <Input
-                                        placeholder="Search by product or vendor name..."
-                                        className="pl-9"
-                                        value={vendorProductSearch}
-                                        onChange={(e) => setVendorProductSearch(e.target.value)}
-                                    />
-                                </div>
-
-                                {loadingVendorKits ? (
-                                    <div className="h-40 flex flex-col items-center justify-center text-muted-foreground gap-2">
-                                        <Loader2 className="w-8 h-8 animate-spin text-[#8D0303]" />
-                                        <p className="text-sm">Loading vendor products...</p>
-                                    </div>
-                                ) : filteredVendorKits.length === 0 ? (
-                                    <div className="h-40 flex flex-col items-center justify-center border-2 border-dashed rounded-3xl bg-amber-50/20 text-amber-400">
-                                        <Package className="w-10 h-10 mb-2 opacity-30" />
-                                        <p className="font-bold text-sm">
-                                            {vendorKits.length === 0
-                                                ? "No approved vendor products available"
-                                                : "No products match your search"}
-                                        </p>
-                                    </div>
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[480px] overflow-y-auto pr-1">
-                                        {filteredVendorKits.map((kit) => {
-                                            const kitId = String(kit._id);
-                                            const selected = formData.linkedVendorKits.includes(kitId);
-                                            const price = getKitDisplayPrice(kit);
-                                            return (
-                                                <button
-                                                    key={kitId}
-                                                    type="button"
-                                                    onClick={() => toggleVendorKit(kitId)}
-                                                    className={cn(
-                                                        "text-left rounded-2xl border p-4 transition-all duration-200 bg-white relative group",
-                                                        selected
-                                                            ? "border-[#8D0303] ring-2 ring-[#8D0303]/15 shadow-md"
-                                                            : "border-gray-100 hover:border-amber-200 hover:shadow-sm"
-                                                    )}
-                                                >
-                                                    <div className="absolute top-3 right-3">
-                                                        <Checkbox
-                                                            checked={selected}
-                                                            onCheckedChange={() => toggleVendorKit(kitId)}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="border-amber-400 data-[state=checked]:bg-[#8D0303] data-[state=checked]:border-[#8D0303]"
-                                                        />
-                                                    </div>
-                                                    <div className="flex gap-3 pr-8">
-                                                        <div className="w-16 h-16 rounded-xl overflow-hidden bg-gray-100 shrink-0 border">
-                                                            {kit.image ? (
-                                                                <img src={kit.image} alt={kit.title} className="w-full h-full object-cover" />
-                                                            ) : (
-                                                                <div className="w-full h-full flex items-center justify-center text-[10px] text-gray-400">No Image</div>
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0 flex-1 space-y-1">
-                                                            <p className="font-bold text-sm text-gray-900 line-clamp-2">{kit.title}</p>
-                                                            <p className="text-[11px] text-muted-foreground truncate">
-                                                                Vendor: <span className="font-semibold text-gray-700">{kit.vendorName || "Unknown"}</span>
-                                                            </p>
-                                                            <div className="flex items-center gap-2 flex-wrap">
-                                                                {price !== null && !Number.isNaN(price) && (
-                                                                    <span className="text-sm font-black text-[#8D0303]">₹{price}</span>
-                                                                )}
-                                                                <span className="text-[10px] uppercase tracking-wide font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                                                    Approved
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    {selected && (
-                                                        <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-[#8D0303]">
-                                                            <CheckCircle2 className="w-3.5 h-3.5" />
-                                                            Linked to this puja
-                                                        </div>
-                                                    )}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                )}
                             </CardContent>
                         </Card>
                     </section>

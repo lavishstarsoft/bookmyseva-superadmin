@@ -41,6 +41,7 @@ interface PujaBooking {
         vendorProductsAmount?: number;
         vendorProductsFinalAmount?: number;
         combinedFinalAmount?: number;
+        waitingChargeAmount?: number;
     };
     payment: { mode: string; totalPaid: number; advancePaid: boolean; remainingPaid: boolean };
     matchingStatus: string;
@@ -48,6 +49,20 @@ interface PujaBooking {
     paymentStatus: string;
     bmsCoins: { used: number; earned: number };
     pujariWorkflow: any;
+    waitingStartedAt?: string | null;
+    waitingChargeConfig?: {
+        enabled?: boolean;
+        autoCancelAfterMinutes?: number | null;
+        freeWaitingMinutes?: number;
+        chargeIntervalMinutes?: number;
+        chargePerInterval?: number;
+        maxWaitingCharge?: number | null;
+    };
+    cancellation?: {
+        cancelledAt?: string;
+        cancelledBy?: string;
+        reason?: string;
+    };
     locationHistory?: { latitude: number; longitude: number; timestamp: string }[];
     feedback: { rating: number; review: string } | null;
     createdAt: string;
@@ -516,6 +531,9 @@ export default function PujaBookingsPage() {
                                 <div className="flex justify-between"><span>Final Amount</span><span className="font-bold text-green-700">₹{viewBooking.pricing?.finalAmount}</span></div>
                                 <div className="flex justify-between"><span>Payment Mode</span><span className="font-medium capitalize">{viewBooking.payment?.mode}</span></div>
                                 <div className="flex justify-between"><span>Total Paid</span><span className="font-bold text-green-600">₹{viewBooking.payment?.totalPaid}</span></div>
+                                {(viewBooking.pricing?.priceIncrement || 0) > 0 && (
+                                    <div className="flex justify-between"><span>Waiting Increment</span><span className="font-bold text-amber-700">+₹{viewBooking.pricing.priceIncrement}</span></div>
+                                )}
                                 {viewBooking.bmsCoins?.used > 0 && <div className="flex justify-between"><span>BMS Coins Used</span><span className="font-medium text-amber-600">{viewBooking.bmsCoins.used}</span></div>}
                                 {viewBooking.bmsCoins?.earned > 0 && <div className="flex justify-between"><span>Coins Earned</span><span className="font-medium text-green-600">+{viewBooking.bmsCoins.earned}</span></div>}
                                 <div className="flex justify-between border-t border-green-200/50 pt-1 mt-1"><span>Admin Commission</span><span className="font-bold text-emerald-800">₹{viewBooking.pricing?.adminCommissionAmount || 0}</span></div>
@@ -528,6 +546,49 @@ export default function PujaBookingsPage() {
                                 )}
                             </div>
 
+                            {(viewBooking.acceptancePricingConfig?.enabled || (viewBooking.pricing?.priceIncrement || 0) > 0) && (
+                                <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-sm space-y-1.5">
+                                    <div className="font-bold text-amber-900">Waiting Charge (Accept Wait)</div>
+                                    <div className="flex justify-between">
+                                        <span>Matching Started</span>
+                                        <span className="font-medium">
+                                            {viewBooking.matchingStartedAt
+                                                ? new Date(viewBooking.matchingStartedAt).toLocaleString()
+                                                : "—"}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Amount Increment</span>
+                                        <span className="font-bold text-amber-800">+₹{viewBooking.pricing?.priceIncrement || 0}</span>
+                                    </div>
+                                    {viewBooking.acceptancePricingLocked && (
+                                        <div className="flex justify-between">
+                                            <span>Amount Locked</span>
+                                            <span className="font-medium text-green-700">Yes</span>
+                                        </div>
+                                    )}
+                                    {viewBooking.acceptancePricingConfig?.bookingExpiryMinutes > 0 && (
+                                        <div className="flex justify-between">
+                                            <span>Auto Cancel After</span>
+                                            <span className="font-medium">{viewBooking.acceptancePricingConfig.bookingExpiryMinutes} min</span>
+                                        </div>
+                                    )}
+                                    {viewBooking.cancellation?.reason && (
+                                        <div className="flex justify-between gap-2 border-t border-amber-200/60 pt-1.5 mt-1">
+                                            <span>Cancel Reason</span>
+                                            <span className="font-medium text-red-700 text-right">{viewBooking.cancellation.reason}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {viewBooking.status === 'cancelled' && viewBooking.cancellation && !(viewBooking.acceptancePricingConfig?.enabled) && (
+                                <div className="bg-red-50 p-3 rounded-lg border border-red-100 text-sm space-y-1">
+                                    <div className="font-bold text-red-800">Cancellation</div>
+                                    <div className="flex justify-between"><span>By</span><span className="capitalize">{viewBooking.cancellation.cancelledBy || "—"}</span></div>
+                                    <div className="flex justify-between gap-2"><span>Reason</span><span className="text-right">{viewBooking.cancellation.reason || "—"}</span></div>
+                                </div>
+                            )}
                             {((viewBooking.selectedVendorProducts && viewBooking.selectedVendorProducts.length > 0) ||
                               (viewBooking.linkedKitOrderIds && viewBooking.linkedKitOrderIds.length > 0)) && (
                                 <div className="bg-amber-50 p-3 rounded-lg border border-amber-100 text-sm space-y-2">
