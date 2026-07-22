@@ -110,3 +110,45 @@ export function TopProductsChart({ data }: ChartProps) {
         </ResponsiveContainer>
     )
 }
+
+/** Multi-series booking / acceptance trend (puja analytics). */
+export function BookingTrendChart({ data }: ChartProps) {
+    if (!data || data.length === 0) {
+        return <div className="flex items-center justify-center h-[320px] text-muted-foreground text-sm">No data available</div>;
+    }
+
+    return (
+        <ResponsiveContainer width="100%" height={320}>
+            <AreaChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis dataKey="name" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} />
+                <Legend />
+                <Area type="monotone" dataKey="bookings" name="Bookings" stroke="#8d0303" fill="#8d030320" strokeWidth={2} />
+                <Area type="monotone" dataKey="completed" name="Completed" stroke="#16a34a" fill="#16a34a20" strokeWidth={2} />
+                <Area type="monotone" dataKey="cancelled" name="Cancelled" stroke="#dc2626" fill="#dc262620" strokeWidth={2} />
+            </AreaChart>
+        </ResponsiveContainer>
+    );
+}
+
+export function AcceptanceTrendChart({ data }: ChartProps) {
+    if (!data || data.length === 0) {
+        return <div className="flex items-center justify-center h-[300px] text-muted-foreground text-sm">No data available</div>;
+    }
+
+    return (
+        <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={data}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis dataKey="name" stroke="#888888" fontSize={11} tickLine={false} axisLine={false} />
+                <YAxis stroke="#888888" fontSize={11} tickLine={false} axisLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: "8px", border: "none", boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)" }} />
+                <Legend />
+                <Bar dataKey="accepted" name="Accepted" fill="#16a34a" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="rejected" name="Rejected" fill="#dc2626" radius={[4, 4, 0, 0]} />
+            </BarChart>
+        </ResponsiveContainer>
+    );
+}

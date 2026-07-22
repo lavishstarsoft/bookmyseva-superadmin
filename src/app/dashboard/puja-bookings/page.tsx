@@ -683,6 +683,32 @@ export default function PujaBookingsPage() {
                                     <div className="text-amber-700 mt-1">{viewBooking.feedback.review || "No review"}</div>
                                 </div>
                             )}
+
+                            {['paid', 'partial_paid'].includes(viewBooking.paymentStatus) && (
+                                <div className="flex justify-end">
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={async () => {
+                                            try {
+                                                const res = await api.get(`/puja-bookings/admin/${viewBooking._id}/invoice.pdf`, {
+                                                    responseType: 'blob'
+                                                });
+                                                const url = window.URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                                                const a = document.createElement('a');
+                                                a.href = url;
+                                                a.download = `invoice-${viewBooking.bookingId}.pdf`;
+                                                a.click();
+                                                window.URL.revokeObjectURL(url);
+                                            } catch (e: any) {
+                                                toast.error(e?.response?.data?.message || 'Failed to download invoice');
+                                            }
+                                        }}
+                                    >
+                                        Download Tax Invoice PDF
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                     )}
                 </DialogContent>

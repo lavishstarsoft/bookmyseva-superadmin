@@ -5,7 +5,7 @@ import {
     Search, Loader2, Wallet, IndianRupee, Store, Clock,
     CheckCircle2, XCircle, ChevronLeft, ChevronRight,
     RefreshCw, CreditCard, Building2, AlertCircle, Percent, Settings,
-    Trash2, Eye, EyeOff
+    Trash2, Eye, EyeOff, FileDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -465,6 +465,11 @@ export default function PujariPayoutsPage() {
                                                             {pujari.bankDetails.upiId ? (
                                                                 <div className="text-[#8D0303] font-semibold mt-0.5">UPI: {pujari.bankDetails.upiId}</div>
                                                             ) : null}
+                                                            {Array.isArray(pujari.bankAccounts) && pujari.bankAccounts.length > 1 ? (
+                                                                <div className="text-[#8D0303] font-semibold mt-1">
+                                                                    +{pujari.bankAccounts.length - 1} more account{pujari.bankAccounts.length > 2 ? 's' : ''}
+                                                                </div>
+                                                            ) : null}
                                                         </div>
                                                     ) : (
                                                         <span className="text-xs text-red-500 flex items-center gap-1 font-semibold">
@@ -472,7 +477,68 @@ export default function PujariPayoutsPage() {
                                                         </span>
                                                     )}
                                                 </TableCell>
-                                                <TableCell className="text-right">
+                                                <TableCell className="text-right space-x-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const to = new Date();
+                                                                const from = new Date();
+                                                                from.setDate(from.getDate() - 30);
+                                                                const res = await api.get(
+                                                                    `/admin/payouts/pujari/${pujari._id}/wallet/statement.pdf`,
+                                                                    {
+                                                                        params: {
+                                                                            from: from.toISOString().slice(0, 10),
+                                                                            to: to.toISOString().slice(0, 10),
+                                                                        },
+                                                                        responseType: "blob",
+                                                                    }
+                                                                );
+                                                                const url = window.URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+                                                                const a = document.createElement("a");
+                                                                a.href = url;
+                                                                a.download = `wallet-statement-${pujari.pujariId || pujari._id}.pdf`;
+                                                                a.click();
+                                                                window.URL.revokeObjectURL(url);
+                                                                toast.success("Wallet statement downloaded");
+                                                            } catch (e: any) {
+                                                                toast.error(e?.response?.data?.message || "Failed to download statement");
+                                                            }
+                                                        }}
+                                                    >
+                                                        <FileDown className="w-3.5 h-3.5 mr-1" /> Statement
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        onClick={async () => {
+                                                            try {
+                                                                const now = new Date();
+                                                                const m = now.getMonth();
+                                                                const fy = m >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+                                                                const res = await api.get(
+                                                                    `/admin/payouts/pujari/${pujari._id}/tax-report.pdf`,
+                                                                    {
+                                                                        params: { fy },
+                                                                        responseType: "blob",
+                                                                    }
+                                                                );
+                                                                const url = window.URL.createObjectURL(new Blob([res.data], { type: "application/pdf" }));
+                                                                const a = document.createElement("a");
+                                                                a.href = url;
+                                                                a.download = `tax-report-${pujari.pujariId || pujari._id}-FY${fy}.pdf`;
+                                                                a.click();
+                                                                window.URL.revokeObjectURL(url);
+                                                                toast.success("Tax / TDS report downloaded");
+                                                            } catch (e: any) {
+                                                                toast.error(e?.response?.data?.message || "Failed to download tax report");
+                                                            }
+                                                        }}
+                                                    >
+                                                        <FileDown className="w-3.5 h-3.5 mr-1" /> Tax
+                                                    </Button>
                                                     <Button 
                                                         size="sm" 
                                                         variant="outline" 

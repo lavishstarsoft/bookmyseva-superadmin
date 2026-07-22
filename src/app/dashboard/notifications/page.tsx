@@ -32,6 +32,7 @@ const getEntityRoute = (notification: AdminNotification) => {
     if (notification.entityType === "vendor") return "/dashboard/vendors";
     if (notification.entityType === "withdrawal") return "/dashboard/payouts";
     if (notification.entityType === "enquiry") return "/dashboard/enquiries";
+    if (notification.entityType === "sos") return "/dashboard/sos";
     return "/dashboard";
 };
 

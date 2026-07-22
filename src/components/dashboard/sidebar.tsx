@@ -32,7 +32,17 @@ import {
     MapPin,
     Wallet,
     Cookie,
-    Truck
+    Truck,
+    AlertTriangle,
+    Gift,
+    Award,
+    Zap,
+    ClipboardCheck,
+    Target,
+    Flame,
+    MapPinned,
+    Siren,
+    Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import api from "@/lib/axios";
@@ -153,6 +163,11 @@ const routes = [
                 icon: ShoppingCart
             },
             {
+                label: "Booking Disputes",
+                href: "/dashboard/booking-disputes",
+                icon: AlertTriangle
+            },
+            {
                 label: "Pujari App Settings",
                 href: "/dashboard/pujaris/settings",
                 icon: Settings
@@ -161,6 +176,56 @@ const routes = [
                 label: "BMS Coins",
                 href: "/dashboard/bms-coins",
                 icon: Star
+            },
+            {
+                label: "Referrals",
+                href: "/dashboard/referrals",
+                icon: Gift
+            },
+            {
+                label: "Achievements",
+                href: "/dashboard/achievements",
+                icon: Award
+            },
+            {
+                label: "Peak Bonus",
+                href: "/dashboard/peak-bonus",
+                icon: Zap
+            },
+            {
+                label: "Attendance",
+                href: "/dashboard/attendance",
+                icon: ClipboardCheck
+            },
+            {
+                label: "Targets",
+                href: "/dashboard/targets",
+                icon: Target
+            },
+            {
+                label: "Booking Heat Map",
+                href: "/dashboard/booking-heatmap",
+                icon: Flame
+            },
+            {
+                label: "Puja Analytics",
+                href: "/dashboard/puja-analytics",
+                icon: BarChart3
+            },
+            {
+                label: "Arrival Geo Fence",
+                href: "/dashboard/geo-fence",
+                icon: MapPinned
+            },
+            {
+                label: "SOS Alerts",
+                href: "/dashboard/sos",
+                icon: Siren
+            },
+            {
+                label: "Device Binding",
+                href: "/dashboard/device-binding",
+                icon: Smartphone
             },
             {
                 label: "Pujari Delivery Zones",
