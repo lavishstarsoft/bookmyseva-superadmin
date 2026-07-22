@@ -58,6 +58,16 @@ interface PujaBooking {
         chargePerInterval?: number;
         maxWaitingCharge?: number | null;
     };
+    matchingStartedAt?: string | null;
+    acceptancePricingLocked?: boolean;
+    acceptancePricingConfig?: {
+        enabled?: boolean;
+        freeWaitingMinutes?: number | null;
+        incrementIntervalMinutes?: number;
+        incrementAmount?: number;
+        maxIncrementLimit?: number;
+        bookingExpiryMinutes?: number;
+    };
     cancellation?: {
         cancelledAt?: string;
         cancelledBy?: string;
@@ -430,8 +440,8 @@ export default function PujaBookingsPage() {
                                     </TableCell>
                                     <TableCell>
                                         <div className="font-bold text-sm">
-                                            ₹{(booking.pricing?.combinedFinalAmount > 0
-                                                ? booking.pricing.combinedFinalAmount
+                                            ₹{((booking.pricing?.combinedFinalAmount ?? 0) > 0
+                                                ? booking.pricing?.combinedFinalAmount
                                                 : booking.pricing?.finalAmount) || 0}
                                         </div>
                                         {booking.linkedKitOrderIds && booking.linkedKitOrderIds.length > 0 && (
@@ -567,10 +577,10 @@ export default function PujaBookingsPage() {
                                             <span className="font-medium text-green-700">Yes</span>
                                         </div>
                                     )}
-                                    {viewBooking.acceptancePricingConfig?.bookingExpiryMinutes > 0 && (
+                                    {(viewBooking.acceptancePricingConfig?.bookingExpiryMinutes ?? 0) > 0 && (
                                         <div className="flex justify-between">
                                             <span>Auto Cancel After</span>
-                                            <span className="font-medium">{viewBooking.acceptancePricingConfig.bookingExpiryMinutes} min</span>
+                                            <span className="font-medium">{viewBooking.acceptancePricingConfig?.bookingExpiryMinutes} min</span>
                                         </div>
                                     )}
                                     {viewBooking.cancellation?.reason && (

@@ -205,7 +205,14 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                 ),
                 prasadamOptions: initialData.prasadamOptions || [],
                 additionalOfferings: initialData.additionalOfferings || [],
-                waitingCharge: { enabled: false },
+                waitingCharge: {
+                    enabled: false,
+                    freeWaitingMinutes: 15,
+                    chargeIntervalMinutes: 10,
+                    chargePerInterval: 0,
+                    maxWaitingCharge: null,
+                    autoCancelAfterMinutes: null
+                },
                 dynamicAcceptancePricing: {
                     enabled: !!initialData.dynamicAcceptancePricing?.enabled,
                     freeWaitingMinutes: initialData.dynamicAcceptancePricing?.freeWaitingMinutes ?? 3,
