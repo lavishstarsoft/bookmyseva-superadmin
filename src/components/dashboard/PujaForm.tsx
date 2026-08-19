@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import api from "@/lib/axios";
 import { toast } from "sonner";
 import { kitsApi, Kit } from "@/api/kits";
+import { prasadamsApi, Prasadam } from "@/api/prasadams";
 
 interface KitItem {
     icon: string;
@@ -38,6 +39,7 @@ interface PujaVersion {
     includes: { icon: string; text: string }[];
     kitItems: KitItem[];
     linkedVendorKits: string[];
+    linkedPrasadams: string[];
 }
 
 interface PrasadamOption {
@@ -86,17 +88,18 @@ function normalizeLinkedIds(raw: any): string[] {
     return [...new Set(ids)];
 }
 
-function normalizeVersions(rawVersions: any[] | undefined, legacyTopLevelKits: string[]): PujaVersion[] {
+function normalizeVersions(rawVersions: any[] | undefined, legacyTopLevelKits: string[], legacyTopLevelPrasadams: string[]): PujaVersion[] {
     const defaults: PujaVersion[] = [
-        { id: "basic", title: "Basic", price: 0, description: "", method: "Standard", rating: 4, includes: [], kitItems: [], linkedVendorKits: [] },
-        { id: "premium", title: "Premium", price: 0, description: "", method: "Agama Shastra", rating: 4.5, includes: [], kitItems: [], linkedVendorKits: [] },
-        { id: "super_premium", title: "Super Premium", price: 0, description: "", method: "Agama + Veda Ashirvadam", rating: 5, includes: [], kitItems: [], linkedVendorKits: [] },
+        { id: "basic", title: "Basic", price: 0, description: "", method: "Standard", rating: 4, includes: [], kitItems: [], linkedVendorKits: [], linkedPrasadams: [] },
+        { id: "premium", title: "Premium", price: 0, description: "", method: "Agama Shastra", rating: 4.5, includes: [], kitItems: [], linkedVendorKits: [], linkedPrasadams: [] },
+        { id: "super_premium", title: "Super Premium", price: 0, description: "", method: "Agama + Veda Ashirvadam", rating: 5, includes: [], kitItems: [], linkedVendorKits: [], linkedPrasadams: [] },
     ];
 
     if (!rawVersions?.length) {
         return defaults.map((d) => ({
             ...d,
-            linkedVendorKits: [...legacyTopLevelKits]
+            linkedVendorKits: [...legacyTopLevelKits],
+            linkedPrasadams: [...legacyTopLevelPrasadams]
         }));
     }
 
@@ -109,15 +112,22 @@ function normalizeVersions(rawVersions: any[] | undefined, legacyTopLevelKits: s
         rating: ver.rating ?? 4,
         includes: ver.includes || [],
         kitItems: ver.kitItems || [],
-        linkedVendorKits: normalizeLinkedIds(ver.linkedVendorKits)
+        linkedVendorKits: normalizeLinkedIds(ver.linkedVendorKits),
+        linkedPrasadams: normalizeLinkedIds(ver.linkedPrasadams)
     }));
 
+    let updated = mapped;
     const anyVersionHasKits = mapped.some((v) => v.linkedVendorKits.length > 0);
     if (!anyVersionHasKits && legacyTopLevelKits.length > 0) {
-        return mapped.map((v) => ({ ...v, linkedVendorKits: [...legacyTopLevelKits] }));
+        updated = updated.map((v) => ({ ...v, linkedVendorKits: [...legacyTopLevelKits] }));
     }
 
-    return mapped;
+    const anyVersionHasPrasadams = mapped.some((v) => v.linkedPrasadams.length > 0);
+    if (!anyVersionHasPrasadams && legacyTopLevelPrasadams.length > 0) {
+        updated = updated.map((v) => ({ ...v, linkedPrasadams: [...legacyTopLevelPrasadams] }));
+    }
+
+    return updated;
 }
 
 function getKitDisplayPrice(kit: Kit): number | null {
@@ -142,6 +152,10 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
     const [loadingVendorKits, setLoadingVendorKits] = useState(true);
     const [vendorProductSearch, setVendorProductSearch] = useState("");
 
+    const [vendorPrasadams, setVendorPrasadams] = useState<Prasadam[]>([]);
+    const [loadingVendorPrasadams, setLoadingVendorPrasadams] = useState(true);
+    const [vendorPrasadamSearch, setVendorPrasadamSearch] = useState("");
+
     const [formData, setFormData] = useState({
         title: "",
         shortDescription: "",
@@ -158,9 +172,9 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         },
         timeSlots: [] as { id: string; label: string }[],
         versions: [
-            { id: "basic", title: "Basic", price: 0, description: "", method: "Standard", rating: 4, includes: [], kitItems: [], linkedVendorKits: [] },
-            { id: "premium", title: "Premium", price: 0, description: "", method: "Agama Shastra", rating: 4.5, includes: [], kitItems: [], linkedVendorKits: [] },
-            { id: "super_premium", title: "Super Premium", price: 0, description: "", method: "Agama + Veda Ashirvadam", rating: 5, includes: [], kitItems: [], linkedVendorKits: [] },
+            { id: "basic", title: "Basic", price: 0, description: "", method: "Standard", rating: 4, includes: [], kitItems: [], linkedVendorKits: [], linkedPrasadams: [] },
+            { id: "premium", title: "Premium", price: 0, description: "", method: "Agama Shastra", rating: 4.5, includes: [], kitItems: [], linkedVendorKits: [], linkedPrasadams: [] },
+            { id: "super_premium", title: "Super Premium", price: 0, description: "", method: "Agama + Veda Ashirvadam", rating: 5, includes: [], kitItems: [], linkedVendorKits: [], linkedPrasadams: [] },
         ] as PujaVersion[],
         prasadamOptions: [] as PrasadamOption[],
         additionalOfferings: [] as AdditionalOffering[],
@@ -201,7 +215,8 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                 timeSlots: initialData.timeSlots || [],
                 versions: normalizeVersions(
                     initialData.versions,
-                    normalizeLinkedIds(initialData.linkedVendorKits)
+                    normalizeLinkedIds(initialData.linkedVendorKits),
+                    normalizeLinkedIds(initialData.linkedPrasadams)
                 ),
                 prasadamOptions: initialData.prasadamOptions || [],
                 additionalOfferings: initialData.additionalOfferings || [],
@@ -251,6 +266,32 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         };
     }, [vendorProductSearch]);
 
+    useEffect(() => {
+        let cancelled = false;
+        const timeoutId = setTimeout(async () => {
+            setLoadingVendorPrasadams(true);
+            try {
+                const params = vendorPrasadamSearch.trim() ? { search: vendorPrasadamSearch.trim() } : undefined;
+                const res = await prasadamsApi.getAll(params);
+                if (!cancelled) {
+                    setVendorPrasadams(res || []);
+                }
+            } catch {
+                if (!cancelled) {
+                    toast.error("Failed to load prasadams");
+                    setVendorPrasadams([]);
+                }
+            } finally {
+                if (!cancelled) setLoadingVendorPrasadams(false);
+            }
+        }, 300);
+
+        return () => { 
+            cancelled = true; 
+            clearTimeout(timeoutId);
+        };
+    }, [vendorPrasadamSearch]);
+
     const toggleVendorKit = (versionIndex: number, kitId: string) => {
         setFormData((prev) => {
             const updated = [...prev.versions];
@@ -266,7 +307,23 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         });
     };
 
+    const toggleVendorPrasadam = (versionIndex: number, prasadamId: string) => {
+        setFormData((prev) => {
+            const updated = [...prev.versions];
+            const current = updated[versionIndex].linkedPrasadams || [];
+            const exists = current.includes(prasadamId);
+            updated[versionIndex] = {
+                ...updated[versionIndex],
+                linkedPrasadams: exists
+                    ? current.filter((id) => id !== prasadamId)
+                    : [...current, prasadamId]
+            };
+            return { ...prev, versions: updated };
+        });
+    };
+
     const filteredVendorKits = vendorKits;
+    const filteredVendorPrasadams = vendorPrasadams;
 
     const handleSave = async () => {
         if (!formData.title) {
@@ -278,7 +335,10 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
             const linkedVendorKits = [
                 ...new Set(formData.versions.flatMap((v) => v.linkedVendorKits || []))
             ];
-            const payload = { ...formData, linkedVendorKits };
+            const linkedPrasadams = [
+                ...new Set(formData.versions.flatMap((v) => v.linkedPrasadams || []))
+            ];
+            const payload = { ...formData, linkedVendorKits, linkedPrasadams };
 
             if (initialData?._id) {
                 await api.put(`/pujas/${initialData._id}`, payload);
@@ -771,103 +831,222 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
                                                     </div>
                                                 </div>
 
-                                                <div className="bg-gray-50/50 rounded-2xl border p-6 space-y-3">
-                                                        <div className="flex items-center justify-between gap-2">
-                                                            <div>
-                                                                <h4 className="text-sm font-black uppercase tracking-widest text-[#8D0303] flex items-center gap-1.5">
-                                                                    <Package className="w-4 h-4" /> Pooja Kit Contents
-                                                                </h4>
-                                                                <p className="text-[11px] text-muted-foreground mt-0.5">
-                                                                    Vendor products linked only to {version.title} package
-                                                                </p>
+                                                {/* Kits and Prasadams Tabs */}
+                                                <Tabs defaultValue="kits" className="w-full mt-6">
+                                                    <TabsList className="grid w-full grid-cols-2 h-12 bg-gray-100/50 p-1 rounded-xl">
+                                                        <TabsTrigger value="kits" className="h-full rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#8D0303] data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                                                            <Package className="w-4 h-4" /> Pooja Kit Contents
+                                                            {(version.linkedVendorKits || []).length > 0 && (
+                                                                <span className="bg-[#8D0303] text-white text-[9px] px-1.5 py-0.5 rounded-full ml-1">{(version.linkedVendorKits || []).length}</span>
+                                                            )}
+                                                        </TabsTrigger>
+                                                        <TabsTrigger value="prasadams" className="h-full rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#E65100] data-[state=active]:shadow-sm text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+                                                            <Utensils className="w-4 h-4" /> Prasadam Contents
+                                                            {(version.linkedPrasadams || []).length > 0 && (
+                                                                <span className="bg-[#E65100] text-white text-[9px] px-1.5 py-0.5 rounded-full ml-1">{(version.linkedPrasadams || []).length}</span>
+                                                            )}
+                                                        </TabsTrigger>
+                                                    </TabsList>
+                                                    <TabsContent value="kits" className="mt-4 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                                        <div className="bg-gray-50/50 rounded-2xl border p-6 space-y-3">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div>
+                                                                    <h4 className="text-sm font-black uppercase tracking-widest text-[#8D0303] flex items-center gap-1.5">
+                                                                        <Package className="w-4 h-4" /> Pooja Kit Contents
+                                                                    </h4>
+                                                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                                        Vendor products linked only to {version.title} package
+                                                                    </p>
+                                                                </div>
+                                                                <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full shrink-0">
+                                                                    {(version.linkedVendorKits || []).length} selected
+                                                                </span>
                                                             </div>
-                                                            <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-100 px-2.5 py-1 rounded-full shrink-0">
-                                                                {(version.linkedVendorKits || []).length} selected
-                                                            </span>
-                                                        </div>
 
-                                                        <div className="relative">
-                                                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-                                                            <Input
-                                                                placeholder="Search vendor products..."
-                                                                className="pl-9 h-9 text-xs"
-                                                                value={vendorProductSearch}
-                                                                onChange={(e) => setVendorProductSearch(e.target.value)}
-                                                            />
-                                                        </div>
+                                                            <div className="relative">
+                                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                                                <Input
+                                                                    placeholder="Search vendor products..."
+                                                                    className="pl-9 h-9 text-xs"
+                                                                    value={vendorProductSearch}
+                                                                    onChange={(e) => setVendorProductSearch(e.target.value)}
+                                                                />
+                                                            </div>
 
-                                                        {loadingVendorKits ? (
-                                                            <div className="h-28 flex flex-col items-center justify-center text-muted-foreground gap-2">
-                                                                <Loader2 className="w-6 h-6 animate-spin text-[#8D0303]" />
-                                                                <p className="text-xs">Loading products...</p>
-                                                            </div>
-                                                        ) : filteredVendorKits.length === 0 ? (
-                                                            <div className="h-28 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-amber-50/20 text-amber-400">
-                                                                <Package className="w-8 h-8 mb-1 opacity-30" />
-                                                                <p className="text-xs font-bold">
-                                                                    {vendorKits.length === 0
-                                                                        ? "No approved vendor products"
-                                                                        : "No products match search"}
-                                                                </p>
-                                                            </div>
-                                                        ) : (
-                                                            <div className="grid grid-cols-1 gap-2.5 max-h-[420px] overflow-y-auto pr-1">
-                                                                {filteredVendorKits.map((kit) => {
-                                                                    const kitId = String(kit._id);
-                                                                    const selected = (version.linkedVendorKits || []).includes(kitId);
-                                                                    const price = getKitDisplayPrice(kit);
-                                                                    return (
-                                                                        <button
-                                                                            key={kitId}
-                                                                            type="button"
-                                                                            onClick={() => toggleVendorKit(idx, kitId)}
-                                                                            className={cn(
-                                                                                "text-left rounded-xl border p-3 transition-all duration-200 bg-white relative",
-                                                                                selected
-                                                                                    ? "border-[#8D0303] ring-2 ring-[#8D0303]/15 shadow-sm"
-                                                                                    : "border-gray-100 hover:border-amber-200"
-                                                                            )}
-                                                                        >
-                                                                            <div className="absolute top-2.5 right-2.5">
-                                                                                <Checkbox
-                                                                                    checked={selected}
-                                                                                    onCheckedChange={() => toggleVendorKit(idx, kitId)}
-                                                                                    onClick={(e) => e.stopPropagation()}
-                                                                                    className="border-amber-400 data-[state=checked]:bg-[#8D0303] data-[state=checked]:border-[#8D0303]"
-                                                                                />
-                                                                            </div>
-                                                                            <div className="flex gap-3 pr-7">
-                                                                                <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0 border">
-                                                                                    {kit.image ? (
-                                                                                        <img src={kit.image} alt={kit.title} className="w-full h-full object-cover" />
-                                                                                    ) : (
-                                                                                        <div className="w-full h-full flex items-center justify-center text-[9px] text-gray-400">No Img</div>
-                                                                                    )}
+                                                            {loadingVendorKits ? (
+                                                                <div className="h-28 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                                                                    <Loader2 className="w-6 h-6 animate-spin text-[#8D0303]" />
+                                                                    <p className="text-xs">Loading products...</p>
+                                                                </div>
+                                                            ) : filteredVendorKits.length === 0 ? (
+                                                                <div className="h-28 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-amber-50/20 text-amber-400">
+                                                                    <Package className="w-8 h-8 mb-1 opacity-30" />
+                                                                    <p className="text-xs font-bold">
+                                                                        {vendorKits.length === 0
+                                                                            ? "No approved vendor products"
+                                                                            : "No products match search"}
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="grid grid-cols-1 gap-2.5 max-h-[420px] overflow-y-auto pr-1">
+                                                                    {filteredVendorKits.map((kit) => {
+                                                                        const kitId = String(kit._id);
+                                                                        const selected = (version.linkedVendorKits || []).includes(kitId);
+                                                                        const price = getKitDisplayPrice(kit);
+                                                                        return (
+                                                                            <button
+                                                                                key={kitId}
+                                                                                type="button"
+                                                                                onClick={() => toggleVendorKit(idx, kitId)}
+                                                                                className={cn(
+                                                                                    "text-left rounded-xl border p-3 transition-all duration-200 bg-white relative",
+                                                                                    selected
+                                                                                        ? "border-[#8D0303] ring-2 ring-[#8D0303]/15 shadow-sm"
+                                                                                        : "border-gray-100 hover:border-amber-200"
+                                                                                )}
+                                                                            >
+                                                                                <div className="absolute top-2.5 right-2.5">
+                                                                                    <Checkbox
+                                                                                        checked={selected}
+                                                                                        onCheckedChange={() => toggleVendorKit(idx, kitId)}
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                        className="border-amber-400 data-[state=checked]:bg-[#8D0303] data-[state=checked]:border-[#8D0303]"
+                                                                                    />
                                                                                 </div>
-                                                                                <div className="min-w-0 flex-1 space-y-0.5">
-                                                                                    <p className="font-bold text-xs text-gray-900 line-clamp-2">{kit.title}</p>
-                                                                                    <p className="text-[10px] text-muted-foreground truncate">
-                                                                                        {kit.vendorName || "Unknown vendor"}
-                                                                                    </p>
-                                                                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                                                                        {price !== null && !Number.isNaN(price) && (
-                                                                                            <span className="text-xs font-black text-[#8D0303]">₹{price}</span>
-                                                                                        )}
-                                                                                        <span className="text-[9px] uppercase tracking-wide font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
-                                                                                            Available
-                                                                                        </span>
-                                                                                        {selected && (
-                                                                                            <span className="text-[9px] font-semibold text-[#8D0303]">Selected</span>
+                                                                                <div className="flex gap-3 pr-7">
+                                                                                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0 border">
+                                                                                        {kit.image ? (
+                                                                                            <img src={kit.image} alt={kit.title} className="w-full h-full object-cover" />
+                                                                                        ) : (
+                                                                                            <div className="w-full h-full flex items-center justify-center text-[9px] text-gray-400">No Img</div>
                                                                                         )}
                                                                                     </div>
+                                                                                    <div className="min-w-0 flex-1 space-y-0.5">
+                                                                                        <p className="font-bold text-xs text-gray-900 line-clamp-2">{kit.title}</p>
+                                                                                        <p className="text-[10px] text-muted-foreground truncate">
+                                                                                            {kit.vendorName || "Unknown vendor"}
+                                                                                        </p>
+                                                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                            {price !== null && !Number.isNaN(price) && (
+                                                                                                <span className="text-xs font-black text-[#8D0303]">₹{price}</span>
+                                                                                            )}
+                                                                                            <span className="text-[9px] uppercase tracking-wide font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                                                                                Available
+                                                                                            </span>
+                                                                                            {selected && (
+                                                                                                <span className="text-[9px] font-semibold text-[#8D0303]">Selected</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
                                                                                 </div>
-                                                                            </div>
-                                                                        </button>
-                                                                    );
-                                                                })}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </TabsContent>
+                                                    
+                                                    <TabsContent value="prasadams" className="mt-4 outline-none animate-in fade-in slide-in-from-bottom-2 duration-300">
+                                                        <div className="bg-orange-50/50 rounded-2xl border p-6 space-y-3">
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <div>
+                                                                    <h4 className="text-sm font-black uppercase tracking-widest text-[#E65100] flex items-center gap-1.5">
+                                                                        <Utensils className="w-4 h-4" /> Prasadam Contents
+                                                                    </h4>
+                                                                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                                                                        Prasadams linked only to {version.title} package
+                                                                    </p>
+                                                                </div>
+                                                                <span className="text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-100 px-2.5 py-1 rounded-full shrink-0">
+                                                                    {(version.linkedPrasadams || []).length} selected
+                                                                </span>
                                                             </div>
-                                                        )}
-                                                </div>
+
+                                                            <div className="relative">
+                                                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                                                                <Input
+                                                                    placeholder="Search prasadams..."
+                                                                    className="pl-9 h-9 text-xs"
+                                                                    value={vendorPrasadamSearch}
+                                                                    onChange={(e) => setVendorPrasadamSearch(e.target.value)}
+                                                                />
+                                                            </div>
+
+                                                            {loadingVendorPrasadams ? (
+                                                                <div className="h-28 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                                                                    <Loader2 className="w-6 h-6 animate-spin text-[#E65100]" />
+                                                                    <p className="text-xs">Loading prasadams...</p>
+                                                                </div>
+                                                            ) : filteredVendorPrasadams.length === 0 ? (
+                                                                <div className="h-28 flex flex-col items-center justify-center border-2 border-dashed rounded-xl bg-orange-50/20 text-orange-400">
+                                                                    <Utensils className="w-8 h-8 mb-1 opacity-30" />
+                                                                    <p className="text-xs font-bold">
+                                                                        {vendorPrasadams.length === 0
+                                                                            ? "No prasadams available"
+                                                                            : "No prasadams match search"}
+                                                                    </p>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="grid grid-cols-1 gap-2.5 max-h-[420px] overflow-y-auto pr-1">
+                                                                    {filteredVendorPrasadams.map((prasadam) => {
+                                                                        const prasadamId = String(prasadam._id);
+                                                                        const selected = (version.linkedPrasadams || []).includes(prasadamId);
+                                                                        const price = prasadam.basePrice;
+                                                                        return (
+                                                                            <button
+                                                                                key={prasadamId}
+                                                                                type="button"
+                                                                                onClick={() => toggleVendorPrasadam(idx, prasadamId)}
+                                                                                className={cn(
+                                                                                    "text-left rounded-xl border p-3 transition-all duration-200 bg-white relative",
+                                                                                    selected
+                                                                                        ? "border-[#E65100] ring-2 ring-[#E65100]/15 shadow-sm"
+                                                                                        : "border-gray-100 hover:border-orange-200"
+                                                                                )}
+                                                                            >
+                                                                                <div className="absolute top-2.5 right-2.5">
+                                                                                    <Checkbox
+                                                                                        checked={selected}
+                                                                                        onCheckedChange={() => toggleVendorPrasadam(idx, prasadamId)}
+                                                                                        onClick={(e) => e.stopPropagation()}
+                                                                                        className="border-orange-400 data-[state=checked]:bg-[#E65100] data-[state=checked]:border-[#E65100]"
+                                                                                    />
+                                                                                </div>
+                                                                                <div className="flex gap-3 pr-7">
+                                                                                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 shrink-0 border">
+                                                                                        {prasadam.image ? (
+                                                                                            <img src={prasadam.image} alt={prasadam.title} className="w-full h-full object-cover" />
+                                                                                        ) : (
+                                                                                            <div className="w-full h-full flex items-center justify-center text-[9px] text-gray-400">No Img</div>
+                                                                                        )}
+                                                                                    </div>
+                                                                                    <div className="min-w-0 flex-1 space-y-0.5">
+                                                                                        <p className="font-bold text-xs text-gray-900 line-clamp-2">{prasadam.title}</p>
+                                                                                        <p className="text-[10px] text-muted-foreground truncate">
+                                                                                            {prasadam.category || "Unknown category"}
+                                                                                        </p>
+                                                                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                                                                            {price !== null && !Number.isNaN(price) && (
+                                                                                                <span className="text-xs font-black text-[#E65100]">₹{price}</span>
+                                                                                            )}
+                                                                                            <span className="text-[9px] uppercase tracking-wide font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded">
+                                                                                                Available
+                                                                                            </span>
+                                                                                            {selected && (
+                                                                                                <span className="text-[9px] font-semibold text-[#E65100]">Selected</span>
+                                                                                            )}
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </TabsContent>
+                                                </Tabs>
                                             </div>
                                         </TabsContent>
                                     ))}

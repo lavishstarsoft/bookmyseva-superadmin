@@ -115,8 +115,8 @@ export interface Category {
 }
 
 export const prasadamsApi = {
-    getAll: async () => {
-        const response = await api.get<Prasadam[]>("prasadams");
+    getAll: async (params?: { search?: string; category?: string; sortBy?: string; featured?: string }) => {
+        const response = await api.get<Prasadam[]>("prasadams", { params });
         return response.data;
     },
     getAllAdmin: async () => {
