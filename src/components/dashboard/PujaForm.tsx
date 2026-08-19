@@ -227,10 +227,11 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
 
     useEffect(() => {
         let cancelled = false;
-        const loadVendorKits = async () => {
+        const timeoutId = setTimeout(async () => {
             setLoadingVendorKits(true);
             try {
-                const res = await kitsApi.getSelectableVendor();
+                const params = vendorProductSearch.trim() ? { search: vendorProductSearch.trim() } : undefined;
+                const res = await kitsApi.getSelectableVendor(params);
                 if (!cancelled) {
                     setVendorKits(res.kits || []);
                 }
@@ -242,10 +243,13 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
             } finally {
                 if (!cancelled) setLoadingVendorKits(false);
             }
+        }, 300);
+
+        return () => { 
+            cancelled = true; 
+            clearTimeout(timeoutId);
         };
-        loadVendorKits();
-        return () => { cancelled = true; };
-    }, []);
+    }, [vendorProductSearch]);
 
     const toggleVendorKit = (versionIndex: number, kitId: string) => {
         setFormData((prev) => {
@@ -262,15 +266,7 @@ export default function PujaForm({ initialData }: { initialData?: any }) {
         });
     };
 
-    const filteredVendorKits = vendorKits.filter((kit) => {
-        const q = vendorProductSearch.trim().toLowerCase();
-        if (!q) return true;
-        return (
-            kit.title?.toLowerCase().includes(q) ||
-            kit.vendorName?.toLowerCase().includes(q) ||
-            kit.category?.toLowerCase().includes(q)
-        );
-    });
+    const filteredVendorKits = vendorKits;
 
     const handleSave = async () => {
         if (!formData.title) {
