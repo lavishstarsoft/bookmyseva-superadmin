@@ -18,6 +18,7 @@ interface AcceptancePricingSettings {
     allowCustomAmount: boolean;
     maxManualIncreaseLimit: number;
     matchingTimeoutMinutes: number;
+    paymentTimeoutSec: number;
 }
 
 const defaults: AcceptancePricingSettings = {
@@ -28,7 +29,10 @@ const defaults: AcceptancePricingSettings = {
     allowCustomAmount: true,
     maxManualIncreaseLimit: 500,
     matchingTimeoutMinutes: 10,
+    paymentTimeoutSec: 900,
 };
+
+const PAYMENT_TIMEOUT_PRESETS = [30, 60, 120, 300, 600, 900, 1800, 3000];
 
 export default function AcceptancePricingSettingsPage() {
     const [loading, setLoading] = useState(true);
@@ -153,6 +157,29 @@ export default function AcceptancePricingSettingsPage() {
                                 min={1}
                                 max={120}
                             />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Payment Timeout After Pujari Acceptance</Label>
+                            <p className="text-xs text-muted-foreground">Customer must pay within this window after a pujari accepts; otherwise the booking auto-cancels and the pujari is released.</p>
+                            <select
+                                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                                value={PAYMENT_TIMEOUT_PRESETS.includes(settings.paymentTimeoutSec) ? String(settings.paymentTimeoutSec) : "custom"}
+                                onChange={(e) => { const v = e.target.value; if (v !== "custom") setSettings((s) => ({ ...s, paymentTimeoutSec: Number(v) })); }}
+                            >
+                                <option value="30">30 seconds</option>
+                                <option value="60">1 minute</option>
+                                <option value="120">2 minutes</option>
+                                <option value="300">5 minutes</option>
+                                <option value="600">10 minutes</option>
+                                <option value="900">15 minutes</option>
+                                <option value="1800">30 minutes</option>
+                                <option value="3000">50 minutes</option>
+                                {!PAYMENT_TIMEOUT_PRESETS.includes(settings.paymentTimeoutSec) && (
+                                    <option value="custom">Custom: {settings.paymentTimeoutSec}s</option>
+                                )}
+                            </select>
+                            <p className="text-[11px] text-muted-foreground">Currently active: {settings.paymentTimeoutSec} seconds</p>
                         </div>
                     </div>
 
