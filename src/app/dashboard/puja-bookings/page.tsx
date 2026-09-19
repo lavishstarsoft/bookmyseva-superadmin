@@ -102,7 +102,7 @@ interface PujaBooking {
     }[];
 }
 
-type StatusFilter = "all" | "pending" | "confirmed" | "pujari_assigned" | "journey_started" | "arrived" | "in_progress" | "completed" | "cancelled";
+type StatusFilter = "all" | "manual_assignment" | "pending" | "confirmed" | "pujari_assigned" | "journey_started" | "arrived" | "in_progress" | "completed" | "cancelled";
 
 export default function PujaBookingsPage() {
     const [searchTerm, setSearchTerm] = useState("");
@@ -365,6 +365,7 @@ export default function PujaBookingsPage() {
                     <SelectTrigger className="w-[200px]"><Filter className="w-4 h-4 mr-2" /><SelectValue /></SelectTrigger>
                     <SelectContent>
                         <SelectItem value="all">All Statuses</SelectItem>
+                        <SelectItem value="manual_assignment">🔔 Needs Assignment</SelectItem>
                         <SelectItem value="pending">Pending</SelectItem>
                         <SelectItem value="pujari_assigned">Pujari Assigned</SelectItem>
                         <SelectItem value="journey_started">Journey Started</SelectItem>
@@ -459,7 +460,14 @@ export default function PujaBookingsPage() {
                                     <TableCell>
                                         <div className="font-bold text-sm text-indigo-700">₹{(booking.pricing?.pujariEarnings || 0).toLocaleString()}</div>
                                     </TableCell>
-                                    <TableCell>{statusBadge(booking.status)}</TableCell>
+                                    <TableCell>
+                                        <div className="flex flex-col gap-1 items-start">
+                                            {statusBadge(booking.status)}
+                                            {booking.matchingStatus === 'manual_assignment' && !booking.pujariId && (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase bg-orange-100 text-orange-800 animate-pulse">🔔 Needs Assignment</span>
+                                            )}
+                                        </div>
+                                    </TableCell>
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
